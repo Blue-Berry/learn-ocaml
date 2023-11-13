@@ -1,0 +1,5 @@
+# dune init proj play
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Workspace root: /home/berry/playground/learn-ocaml/play
+# Auto-detected concurrency: 16

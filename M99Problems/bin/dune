@@ -1,0 +1,4 @@
+(executable
+ (public_name M99Problems)
+ (name main)
+ (libraries M99Problems))
