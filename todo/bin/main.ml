@@ -69,9 +69,10 @@ let rec main t ((x, y) as pos) selected_index =
         (fun i t -> if i = selected_index then updated_todo else t)
         todo_list.todos
     in
-    let _ = { todo_list with todos = updated_todos } in
+    todo_list.todos <- updated_todos;
     main t pos selected_index
   | _ -> main t pos selected_index
 ;;
 
+let () = main (Term.create ()) (0, 0) 0
 let () = main (Term.create ()) (0, 0) 0
