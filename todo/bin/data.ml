@@ -22,8 +22,7 @@ let get_json_file_path () =
 ;;
 
 type todo =
-  { id : int
-  ; title : string
+  { title : string
   ; description : string
   ; completed : bool
   }

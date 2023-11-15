@@ -1,6 +1,6 @@
 (executable
  (public_name todo)
  (name main)
- (libraries todo notty notty.unix yojson core ppx_deriving_yojson.runtime)
+ (libraries todo notty notty.unix yojson core ppx_deriving_yojson.runtime nottui lwd)
  (preprocess (pps ppx_deriving_yojson))
  (modules data main common))
