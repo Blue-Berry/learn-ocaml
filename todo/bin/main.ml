@@ -13,7 +13,7 @@ let change_todo_priority todo_list n delta =
   updated_todos
 ;;
 
-let img_of_string s width colour =
+let img_of_string s width attr =
   let rec loop s =
     if String.length s <= width
     then [ s ]
@@ -23,7 +23,7 @@ let img_of_string s width colour =
       first :: loop rest)
   in
   let lines = loop s in
-  let img = List.map (fun s -> I.string A.(fg colour) s) lines |> I.vcat in
+  let img = List.map (fun s -> I.string attr s) lines |> I.vcat in
   img
 ;;
 
@@ -71,10 +71,9 @@ let clear_screen t =
 
 let rec text_input_loop t text prompt =
   (* TODO: text wrap *)
-  let prompt_img = I.string A.(fg magenta) prompt in
-  let cursor_img = I.string A.(fg lightred) "|" in
-  (* let text_img = I.string A.(fg lightblue) text in *)
-  let text_img = img_of_string text 80 lightblue in
+  let prompt_img = img_of_string prompt 80 A.(fg magenta) in
+  let cursor_img = I.string A.(fg lightred) " " in
+  let text_img = img_of_string text 80 A.(fg lightblue) in
   let text_img = I.(text_img <|> void 0 0 <|> cursor_img) in
   I.vcat [ prompt_img; I.(void 1 0 <|> text_img) ] |> Term.image t;
   match Term.event t with
