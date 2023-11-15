@@ -1,10 +1,6 @@
 open Notty
 
-let todo_list =
-  match Data.get_todos () with
-  | Result.Ok todo_list -> todo_list
-  | Result.Error _ -> failwith "Error while getting todo list"
-;;
+let todo_list = Data.get_todos ()
 
 let change_todo_priority todo_list n delta =
   let todo = List.nth todo_list n in
@@ -15,6 +11,20 @@ let change_todo_priority todo_list n delta =
       todo_list
   in
   updated_todos
+;;
+
+let img_of_string s width colour =
+  let rec loop s =
+    if String.length s <= width
+    then [ s ]
+    else (
+      let first = String.sub s 0 width in
+      let rest = String.sub s width (String.length s - width) in
+      first :: loop rest)
+  in
+  let lines = loop s in
+  let img = List.map (fun s -> I.string A.(fg colour) s) lines |> I.vcat in
+  img
 ;;
 
 open Data
@@ -36,7 +46,7 @@ let print_todos selected_index todo_list =
         if i = selected_index
         then (
           (* TODO: text wrap *)
-          let desc_str = I.string attr todo.description in
+          let desc_str = I.string A.(fg lightmagenta) todo.description in
           I.vcat [ todo_str; I.(void 4 0 <|> desc_str) ])
         else todo_str)
       todos_with_index
@@ -63,7 +73,8 @@ let rec text_input_loop t text prompt =
   (* TODO: text wrap *)
   let prompt_img = I.string A.(fg magenta) prompt in
   let cursor_img = I.string A.(fg lightred) "|" in
-  let text_img = I.string A.(fg lightblue) text in
+  (* let text_img = I.string A.(fg lightblue) text in *)
+  let text_img = img_of_string text 80 lightblue in
   let text_img = I.(text_img <|> void 0 0 <|> cursor_img) in
   I.vcat [ prompt_img; I.(void 1 0 <|> text_img) ] |> Term.image t;
   match Term.event t with

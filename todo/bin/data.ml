@@ -1,3 +1,12 @@
+type todo =
+  { title : string
+  ; description : string
+  ; completed : bool
+  }
+[@@deriving yojson]
+
+type todos = { todos : todo list } [@@deriving yojson]
+
 let get_home_directory () =
   try Sys.getenv "HOME" with
   (*TODO: change this to use a result and pass the result up *)
@@ -21,15 +30,6 @@ let get_json_file_path () =
   json_file
 ;;
 
-type todo =
-  { title : string
-  ; description : string
-  ; completed : bool
-  }
-[@@deriving yojson]
-
-type todos = { todos : todo list } [@@deriving yojson]
-
 let json_of_todos todos = todos_to_yojson todos
 let todos_of_json json = todos_of_yojson json
 
@@ -44,8 +44,22 @@ let store_todos todos =
 let get_todos () =
   let json_file = get_json_file_path () in
   let in_channel = open_in json_file in
-  let json = Yojson.Safe.from_channel in_channel in
-  let todos = todos_of_json json in
-  close_in in_channel;
-  todos
+  try
+    let json = Yojson.Safe.from_channel in_channel in
+    let todos = todos_of_json json in
+    close_in in_channel;
+    match todos with
+    | Ok todos -> todos
+    | Error _ ->
+      store_todos { todos = [] };
+      { todos = [] }
+  with
+  | Yojson.Json_error _ ->
+    close_in in_channel;
+    store_todos { todos = [] };
+    { todos = [] }
+  | _ ->
+    close_in in_channel;
+    store_todos { todos = [] };
+    failwith "Unable to read todos"
 ;;
