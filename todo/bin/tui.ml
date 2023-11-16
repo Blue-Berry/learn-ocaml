@@ -146,6 +146,7 @@ let text_input_loop t text prompt =
     match Term.event t with
     | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) -> None
     | `Resize _ -> input_loop_aux t text prompt text_index
+    | `Key (`ASCII 'Y', [ `Ctrl ]) -> Some text
     | `Key (`ASCII c, _) ->
       if c >= 'a' && c <= 'z' && text = ""
       then (
@@ -157,26 +158,33 @@ let text_input_loop t text prompt =
       if len = 0
       then input_loop_aux t text prompt text_index
       else input_loop_aux t (remove_at text_index text) prompt (index_change (-1))
-    | `Key (`Enter, [ `Ctrl ]) -> Some text
     | `Key (`Enter, _) ->
       input_loop_aux t (insert_at (text_index + 1) '\n' text) prompt (index_change 1)
     | `Key (`Arrow d, _) ->
       let calc_updown_index direction =
+        let lines = lines_of_string text in
+        let pos_in_line, line_index = calc_cursor_pos text "" text_index in
+        let pre_line_len =
+          min (line_index - 1) (List.length lines - 1) |> List.nth lines |> String.length
+        in
+        let next_line_len =
+          min (line_index + 1) (List.length lines - 1) |> List.nth lines |> String.length
+        in
+        let current_line_len = List.nth lines (line_index - 1) |> String.length in
         match direction with
         | `Up ->
-          let new_index = text_index in
-          new_index - 1
-        | `Down ->
-          let new_index = text_index in
-          new_index + 1
+          (* BUG: going up is supper buggy sometimes don't know what's going on but too tired to fix
+             It's probs something to do with the \n character*)
+          -pos_in_line - pre_line_len + min pre_line_len pos_in_line
+        | `Down -> -pos_in_line + current_line_len + 1 + min next_line_len pos_in_line
       in
       input_loop_aux t text prompt
       @@
         (match d with
         | `Left -> index_change (-1)
         | `Right -> index_change 1
-        | `Up -> calc_updown_index `Up
-        | `Down -> calc_updown_index `Down)
+        | `Up -> index_change (calc_updown_index `Up)
+        | `Down -> index_change (calc_updown_index `Down))
     | _ -> input_loop_aux t text prompt text_index
   in
   input_loop_aux t text prompt 0
@@ -203,7 +211,8 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
   in
   Term.image t img;
   match Term.event t with
-  | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) -> Data.store_todos todo_list
+  | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
+    Data.store_todos todo_list
   | `Resize _ -> main_tui_loop t pos selected_index todo_list
   | `Key (`Arrow d, _) ->
     let max_index = List.length todo_list.todos - 1 in
