@@ -162,42 +162,13 @@ let text_input_loop t text prompt =
       input_loop_aux t (insert_at (text_index + 1) '\n' text) prompt (index_change 1)
     | `Key (`Arrow d, _) ->
       let calc_updown_index direction =
-        let lines = lines_of_string text in
-        let index_in_current_line =
-          String.sub text 0 (min text_index (String.length text))
-          |> lines_of_string
-          |> List.length
-        in
-        let current_line_index =
-          String.sub text 0 text_index |> lines_of_string |> List.length
-        in
         match direction with
         | `Up ->
-          let prev_line_index = max 0 (current_line_index - 1) in
-          let new_index_in_prev_line =
-            min index_in_current_line (List.nth lines prev_line_index |> String.length)
-          in
-          let new_index =
-            List.fold_left
-              ( + )
-              0
-              (List.map String.length (List.take prev_line_index lines))
-            + new_index_in_prev_line
-          in
-          new_index
+          let new_index = text_index in
+          new_index - 1
         | `Down ->
-          let next_line_index = min (List.length lines - 1) (current_line_index + 1) in
-          let new_index_in_next_line =
-            min index_in_current_line (List.nth lines next_line_index |> String.length)
-          in
-          let new_index =
-            List.fold_left
-              ( + )
-              0
-              (List.map String.length (List.take next_line_index lines))
-            + new_index_in_next_line
-          in
-          new_index
+          let new_index = text_index in
+          new_index + 1
       in
       input_loop_aux t text prompt
       @@
