@@ -190,13 +190,18 @@ let text_input_loop t text prompt =
   input_loop_aux t text prompt 0
 ;;
 
-let prompt_for_title_and_description () =
-  let title = text_input_loop (Term.create ()) "" "Enter the title for the new todo:" in
+let prompt_for_title_and_description title description =
+  let title =
+    text_input_loop (Term.create ()) title "Enter the title for the new todo:"
+  in
   match title with
   | None -> None
   | Some _ ->
     let description =
-      text_input_loop (Term.create ()) "" "Enter the description for the new todo:"
+      text_input_loop
+        (Term.create ())
+        description
+        "Enter the description for the new todo:"
     in
     (match title, description with
      | Some title, Some description -> Some (title, description)
@@ -249,7 +254,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
     (* Create new todo item *)
   | `Key (`ASCII 'a', _) ->
     clear_screen t;
-    (match prompt_for_title_and_description () with
+    (match prompt_for_title_and_description "" "" with
      | None -> main_tui_loop t pos selected_index todo_list
      | Some (title, description) ->
        let new_todo = { title; description; completed = false } in
@@ -271,5 +276,17 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
       let updated_todos = change_todo_priority todo_list.todos selected_index (-1) in
       let selected_index = selected_index - 1 in
       main_tui_loop t pos selected_index { todos = updated_todos })
+  | `Key (`ASCII 'e', _) ->
+    clear_screen t;
+    let todo = List.nth todo_list.todos selected_index in
+    (match prompt_for_title_and_description todo.title todo.description with
+     | None -> main_tui_loop t pos selected_index todo_list
+     | Some (title, description) ->
+       let new_todo = { todo with title; description } in
+       let updated_todos =
+         List.mapi (fun i t -> if i = selected_index then new_todo else t) todo_list.todos
+       in
+       let updated_todo_list = { todos = updated_todos } in
+       main_tui_loop (Term.create ()) pos 0 updated_todo_list)
   | _ -> main_tui_loop t pos selected_index todo_list
 ;;
