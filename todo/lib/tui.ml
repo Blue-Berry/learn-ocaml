@@ -29,6 +29,7 @@ let img_of_string s width attr =
 
 open Data
 
+(* TODO: fix this in terms of selected index *)
 let print_todos selected_index (todos : Data.todo list) =
   let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
   let image =
@@ -60,23 +61,34 @@ let print_todos selected_index (todos : Data.todo list) =
   image
 ;;
 
-let populate_display_list selected_index folders =
-  let rec aux selected_index folders =
+let populate_display_img selected_index folders =
+  let rec aux selected_index folders n =
     match folders with
     | [] -> I.empty
     | folder :: rest ->
+      let att =
+        if n = selected_index
+        then A.(fg red)
+        else if folder.open_folder
+        then A.(fg lightyellow)
+        else A.(fg lightblue)
+      in
       if folder.open_folder = false
       then (
-        let folder_img = img_of_string ("+ " ^ folder.name) 80 A.(fg lightyellow) in
+        (* TODO: need to calcualte what index the todos are at *)
+        let folder_img = img_of_string ("+ " ^ folder.name) 80 att in
         (* folder_img :: populate_display_list rest) *)
-        I.vcat [ folder_img; aux selected_index rest ])
+        I.vcat [ folder_img; aux selected_index rest (n + 1) ])
       else (
-        let folder_img = img_of_string ("- " ^ folder.name) 80 A.(fg lightyellow) in
+        let folder_img = img_of_string ("- " ^ folder.name) 80 att in
         (* folder_img :: print_todos selected_index folder.todos :: populate_display_list rest) *)
         I.vcat
-          [ folder_img; print_todos selected_index folder.todos; aux selected_index rest ])
+          [ folder_img
+          ; print_todos (selected_index - n) folder.todos
+          ; aux selected_index rest (n + 1 + List.length folder.todos)
+          ])
   in
-  aux selected_index folders
+  aux selected_index folders 0
 ;;
 
 open Common
@@ -237,18 +249,20 @@ let prompt_for_title_and_description title description =
 ;;
 
 let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
-  let img =
-    let todos_img = print_todos selected_index folders in
-    let combined_img = todos_img in
-    combined_img
-  in
+  let img = populate_display_img selected_index folders in
   Term.image t img;
   match Term.event t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
     Data.store_todos folders
   | `Resize _ -> main_tui_loop t pos selected_index folders
   | `Key (`Arrow d, _) ->
-    let max_index = List.length folders.todos - 1 in
+    (* let max_index = List.length folders.todos - 1 in *)
+    let max_index =
+      List.fold_left
+        (fun acc f -> acc + if f.open_folder = false then 1 else 1 + List.length f.todos)
+        0
+        folders
+    in
     let new_index =
       match d with
       | `Up -> max 0 (selected_index - 1)
