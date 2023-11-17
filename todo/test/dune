@@ -1,2 +1,3 @@
 (test
- (name todo))
+ (name todo)
+ (libraries ounit2 lib))

@@ -74,61 +74,68 @@ let clear_screen t =
   Term.image t img
 ;;
 
+(* function used for removing a character at a cursor position *)
+let remove_at index str =
+  let len = String.length str in
+  if index < 0 || index >= len
+  then str
+  else (
+    let before = String.sub str 0 index in
+    let after = String.sub str (index + 1) (len - index - 1) in
+    before ^ after)
+;;
+
+(** [insert_at index c str] inserts the character [c] at the index [index] in the string [str].
+    **)
+let insert_at index c str =
+  let len = String.length str in
+  if index = len + 1
+  then str ^ String.make 1 c
+  else if index < 0 || index > len + 1
+  then str
+  else (
+    let before = String.sub str 0 index in
+    let after = String.sub str index (len - index) in
+    before ^ String.make 1 c ^ after)
+;;
+
+let lines_of_string s =
+  let paragraphs = String.split_on_char '\n' s in
+  let rec lines str =
+    if String.length str <= 80
+    then [ str ]
+    else (
+      let first = String.sub str 0 80 in
+      let rest = String.sub str 80 (String.length str - 80) in
+      first :: lines rest)
+  in
+  List.map lines paragraphs |> List.flatten
+;;
+
+(** [calc_cursor_pos text prompt text_index]
+    calculates the position of the cursor given teh arguments
+    it takes into count line numbers and wrapping **)
+let calc_cursor_pos text prompt text_index =
+  (* TODO: clean this up, this is a mess but it works *)
+  let prompt_lines = lines_of_string prompt in
+  if String.length text = 0
+  then 1, 1
+  else (
+    let current_line =
+      String.sub text 0 text_index |> lines_of_string |> List.rev |> List.hd
+    in
+    if String.get text (min text_index (String.length text - 1)) = '\n'
+    then (
+      let y = String.sub text 0 text_index |> lines_of_string |> List.length in
+      1, y + List.length prompt_lines)
+    else (
+      let y = String.sub text 0 text_index |> lines_of_string |> List.length in
+      let x = String.length current_line in
+      x + 2, y + List.length prompt_lines - 1))
+;;
+
 (* Loop to manage input and update the image to the screen *)
 let text_input_loop t text prompt =
-  (* function used for removing a character at a cursor position *)
-  let remove_at index str =
-    let len = String.length str in
-    if index < 0 || index >= len
-    then str
-    else (
-      let before = String.sub str 0 index in
-      let after = String.sub str (index + 1) (len - index - 1) in
-      before ^ after)
-  in
-  (* function used for inserting a character at a cursor position *)
-  let insert_at index c str =
-    let len = String.length str in
-    if index = len + 1
-    then str ^ String.make 1 c
-    else if index < 0 || index > len + 1
-    then str
-    else (
-      let before = String.sub str 0 index in
-      let after = String.sub str index (len - index) in
-      before ^ String.make 1 c ^ after)
-  in
-  let lines_of_string s =
-    let paragraphs = String.split_on_char '\n' s in
-    let rec lines str =
-      if String.length str <= 80
-      then [ str ]
-      else (
-        let first = String.sub str 0 80 in
-        let rest = String.sub str 80 (String.length str - 80) in
-        first :: lines rest)
-    in
-    List.map lines paragraphs |> List.flatten
-  in
-  (* function used for calculating the cursor position based off the text field *)
-  (* TODO: clean this up, this is a mess but it works *)
-  let calc_cursor_pos text prompt text_index =
-    let prompt_lines = lines_of_string prompt in
-    if String.length text = 0
-    then 1, 1
-    else (
-      let current_line =
-        String.sub text 0 text_index |> lines_of_string |> List.rev |> List.hd
-      in
-      if String.get text (min text_index (String.length text - 1)) = '\n'
-      then (
-        let y = String.sub text 0 text_index |> lines_of_string |> List.length in
-        1, y + List.length prompt_lines)
-      else (
-        let y = String.sub text 0 text_index |> lines_of_string |> List.length in
-        let x = String.length current_line in
-        x + 2, y + List.length prompt_lines - 1))
-  in
   (* function used for looping and updating the image *)
   let rec input_loop_aux t text prompt text_index =
     let index_change delta =
