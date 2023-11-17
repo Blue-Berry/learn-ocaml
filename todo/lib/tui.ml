@@ -99,6 +99,8 @@ let insert_at index c str =
     before ^ String.make 1 c ^ after)
 ;;
 
+(** [lines_of_string s] splits a string into lines split on the newline character
+    and those lines are split into lines of length 80 **)
 let lines_of_string s =
   let paragraphs = String.split_on_char '\n' s in
   let rec lines str =
