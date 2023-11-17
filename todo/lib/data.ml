@@ -9,6 +9,7 @@ type folder =
   { name : string
   ; todos : todo list
   ; open_folder : bool
+  ; folders : folder list
   }
 [@@deriving yojson]
 

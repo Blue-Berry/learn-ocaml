@@ -1,5 +1,9 @@
 open Notty
 
+type display_list =
+  | Todo of (Data.todo * int)
+  | Folder of (Data.folder * int)
+
 let change_todo_priority todo_list n delta =
   let todo = List.nth todo_list n in
   let prev_todo = List.nth todo_list (n + delta) in
@@ -61,34 +65,54 @@ let print_todos selected_index (todos : Data.todo list) =
   image
 ;;
 
-let populate_display_img selected_index folders =
-  let rec aux selected_index folders n =
+let populate_display_list folders =
+  let rec aux folders acc indent =
     match folders with
-    | [] -> I.empty
+    | [] -> acc
     | folder :: rest ->
-      let att =
+      if folder.open_folder = false
+      then aux rest (acc @ [ Folder (folder, indent) ]) indent
+      else
+        aux
+          rest
+          (acc
+           @ [ Folder (folder, indent) ]
+           @ aux folder.folders [] (indent + 1)
+           @ List.map (fun todo -> Todo (todo, indent + 1)) folder.todos)
+          indent
+  in
+  aux folders [] 0
+;;
+
+let img_of_display_list list selected_index =
+  let rec aux list selected_index acc n =
+    match list with
+    | [] -> acc
+    | Todo (todo, indent) :: rest ->
+      let checkbox = if todo.completed then " ✓ " else " ○ " in
+      let attr =
+        if todo.completed
+        then A.fg A.lightgreen
+        else if n = selected_index
+        then A.(fg red)
+        else A.(fg blue)
+      in
+      let string_img = img_of_string (checkbox ^ todo.title) 80 attr in
+      let img = I.hpad indent 0 string_img in
+      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
+    | Folder (folder, indent) :: rest ->
+      let attr =
         if n = selected_index
         then A.(fg red)
         else if folder.open_folder
-        then A.(fg lightyellow)
+        then A.(fg lightmagenta)
         else A.(fg lightblue)
       in
-      if folder.open_folder = false
-      then (
-        (* TODO: need to calcualte what index the todos are at *)
-        let folder_img = img_of_string ("+ " ^ folder.name) 80 att in
-        (* folder_img :: populate_display_list rest) *)
-        I.vcat [ folder_img; aux selected_index rest (n + 1) ])
-      else (
-        let folder_img = img_of_string ("- " ^ folder.name) 80 att in
-        (* folder_img :: print_todos selected_index folder.todos :: populate_display_list rest) *)
-        I.vcat
-          [ folder_img
-          ; print_todos (selected_index - n) folder.todos
-          ; aux selected_index rest (n + 1 + List.length folder.todos)
-          ])
+      let string_img = img_of_string folder.name 80 attr in
+      let img = I.hpad indent 0 string_img in
+      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
   in
-  aux selected_index folders 0
+  aux list selected_index I.empty 0
 ;;
 
 open Common
@@ -249,7 +273,7 @@ let prompt_for_title_and_description title description =
 ;;
 
 let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
-  let img = populate_display_img selected_index folders in
+  let img = img_of_display_list (populate_display_list folders) selected_index in
   Term.image t img;
   match Term.event t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
