@@ -8,7 +8,7 @@ type todo =
 type folder =
   { name : string
   ; todos : todo list
-  ; open_folder : bool
+  ; is_open : bool
   ; folders : folder list
   }
 [@@deriving yojson]

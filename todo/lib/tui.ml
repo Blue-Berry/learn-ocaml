@@ -32,89 +32,6 @@ let img_of_string s width attr =
 ;;
 
 open Data
-
-(* TODO: fix this in terms of selected index *)
-let print_todos selected_index (todos : Data.todo list) =
-  let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
-  let image =
-    List.map
-      (fun (i, todo) ->
-        let checkbox =
-          if i = selected_index
-          then if todo.completed then " ✓ " else " ○ "
-          else if todo.completed
-          then "✓ "
-          else "○ "
-        in
-        let attr =
-          if todo.completed
-          then A.fg A.lightgreen
-          else if i = selected_index
-          then A.(fg red)
-          else A.(fg blue)
-        in
-        let todo_img = img_of_string (checkbox ^ todo.title) 80 attr in
-        if i = selected_index
-        then (
-          let desc_img = img_of_string todo.description 80 A.(fg lightmagenta) in
-          I.vcat [ todo_img; I.(void 4 0 <|> desc_img) ])
-        else todo_img)
-      todos_with_index
-    |> I.vcat
-  in
-  image
-;;
-
-let populate_display_list folders =
-  let rec aux folders acc indent =
-    match folders with
-    | [] -> acc
-    | folder :: rest ->
-      if folder.open_folder = false
-      then aux rest (acc @ [ Folder (folder, indent) ]) indent
-      else
-        aux
-          rest
-          (acc
-           @ [ Folder (folder, indent) ]
-           @ aux folder.folders [] (indent + 1)
-           @ List.map (fun todo -> Todo (todo, indent + 1)) folder.todos)
-          indent
-  in
-  aux folders [] 0
-;;
-
-let img_of_display_list list selected_index =
-  let rec aux list selected_index acc n =
-    match list with
-    | [] -> acc
-    | Todo (todo, indent) :: rest ->
-      let checkbox = if todo.completed then " ✓ " else " ○ " in
-      let attr =
-        if todo.completed
-        then A.fg A.lightgreen
-        else if n = selected_index
-        then A.(fg red)
-        else A.(fg blue)
-      in
-      let string_img = img_of_string (checkbox ^ todo.title) 80 attr in
-      let img = I.hpad indent 0 string_img in
-      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
-    | Folder (folder, indent) :: rest ->
-      let attr =
-        if n = selected_index
-        then A.(fg red)
-        else if folder.open_folder
-        then A.(fg lightmagenta)
-        else A.(fg lightblue)
-      in
-      let string_img = img_of_string folder.name 80 attr in
-      let img = I.hpad indent 0 string_img in
-      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
-  in
-  aux list selected_index I.empty 0
-;;
-
 open Common
 
 let clear_screen t =
@@ -272,8 +189,118 @@ let prompt_for_title_and_description title description =
      | _ -> None)
 ;;
 
+let print_todos selected_index (todos : Data.todo list) =
+  let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
+  let image =
+    List.map
+      (fun (i, todo) ->
+        let checkbox =
+          if i = selected_index
+          then if todo.completed then " ✓ " else " ○ "
+          else if todo.completed
+          then "✓ "
+          else "○ "
+        in
+        let attr =
+          if todo.completed
+          then A.fg A.lightgreen
+          else if i = selected_index
+          then A.(fg red)
+          else A.(fg blue)
+        in
+        let todo_img = img_of_string (checkbox ^ todo.title) 80 attr in
+        if i = selected_index
+        then (
+          let desc_img = img_of_string todo.description 80 A.(fg lightmagenta) in
+          I.vcat [ todo_img; I.(void 4 0 <|> desc_img) ])
+        else todo_img)
+      todos_with_index
+    |> I.vcat
+  in
+  image
+;;
+
+let display_list_of_folders folders =
+  let rec aux folders acc indent =
+    match folders with
+    | [] -> acc
+    | folder :: rest ->
+      if folder.is_open = false
+      then aux rest (acc @ [ Folder (folder, indent) ]) indent
+      else
+        aux
+          rest
+          (acc
+           @ [ Folder (folder, indent) ]
+           @ aux folder.folders [] (indent + 1)
+           @ List.map (fun todo -> Todo (todo, indent + 1)) folder.todos)
+          indent
+  in
+  aux folders [] 0
+;;
+
+(* TODO:test this *)
+let toggle_display_list_nth folders n =
+  let rec aux folders n acc =
+    match folders, n with
+    | [], _ -> [], n
+    | folder :: rest, 0 ->
+      List.rev acc @ [ { folder with is_open = not folder.is_open } ] @ rest, 0
+    | folder :: rest, n ->
+      if not folder.is_open
+      then aux rest (n - 1) (folder :: acc)
+      else (
+        let sub_folder, n = aux folder.folders (n - 1) (folder :: acc) in
+        if n = 0
+        then List.rev acc @ sub_folder @ rest, 0
+        else if n < List.length folder.todos
+        then aux rest (n - List.length folder.todos) (acc @ sub_folder)
+        else
+          ( (let new_todos =
+               List.mapi
+                 (fun i t -> if i = n then { t with completed = not t.completed } else t)
+                 folder.todos
+             in
+             List.rev acc @ [ { folder with todos = new_todos } ] @ rest)
+          , 0 ))
+  in
+  let folders, _ = aux folders n [] in
+  folders
+;;
+
+let img_of_display_list list selected_index =
+  let rec aux list selected_index acc n =
+    match list with
+    | [] -> acc
+    | Todo (todo, indent) :: rest ->
+      let checkbox = if todo.completed then " ✓ " else " ○ " in
+      let attr =
+        if todo.completed
+        then A.fg A.lightgreen
+        else if n = selected_index
+        then A.(fg red)
+        else A.(fg blue)
+      in
+      let string_img = img_of_string (checkbox ^ todo.title) 80 attr in
+      let img = I.hpad indent 0 string_img in
+      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
+    | Folder (folder, indent) :: rest ->
+      let attr =
+        if n = selected_index
+        then A.(fg red)
+        else if folder.is_open
+        then A.(fg lightmagenta)
+        else A.(fg lightblue)
+      in
+      let string_img = img_of_string folder.name 80 attr in
+      let img = I.hpad indent 0 string_img in
+      aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
+  in
+  aux list selected_index I.empty 0
+;;
+
 let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
-  let img = img_of_display_list (populate_display_list folders) selected_index in
+  let img = img_of_display_list (display_list_of_folders folders) selected_index in
   Term.image t img;
   match Term.event t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
@@ -283,7 +310,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     (* let max_index = List.length folders.todos - 1 in *)
     let max_index =
       List.fold_left
-        (fun acc f -> acc + if f.open_folder = false then 1 else 1 + List.length f.todos)
+        (fun acc f -> acc + if f.is_open = false then 1 else 1 + List.length f.todos)
         0
         folders
     in
@@ -303,58 +330,52 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     in
     main_tui_loop t new_pos new_index folders
   | `Key (`Enter, _) ->
-    let todo = List.nth folders.todos selected_index in
-    let updated_todo = { todo with completed = not todo.completed } in
-    let updated_todos =
-      List.mapi (fun i t -> if i = selected_index then updated_todo else t) folders.todos
-    in
-    let updated_todo_list = { todos = updated_todos } in
-    main_tui_loop t pos selected_index updated_todo_list
-    (* Delete selected item *)
-  | `Key (`ASCII 'D', [ `Ctrl ]) ->
-    let updated_todos = List.filteri (fun i _ -> i <> selected_index) folders.todos in
-    let updated_todo_list = { todos = updated_todos } in
-    main_tui_loop t pos selected_index updated_todo_list
-    (* Create new todo item *)
-  | `Key (`ASCII 'a', _) ->
-    clear_screen t;
-    (match prompt_for_title_and_description "" "" with
-     | None -> main_tui_loop t pos selected_index folders
-     | Some (title, description) ->
-       let new_todo = { title; description; completed = false } in
-       let updated_todos = new_todo :: folders.todos in
-       let updated_todo_list = { todos = updated_todos } in
-       Data.store_todos updated_todo_list;
-       main_tui_loop (Term.create ()) pos 0 updated_todo_list)
-    (* Shift item up or down *)
-  | `Key (`ASCII 'j', _) ->
-    if selected_index >= List.length folders.todos - 1
-    then main_tui_loop t pos selected_index folders
-    else (
-      let updated_todos = change_todo_priority folders.todos selected_index 1 in
-      let selected_index = selected_index + 1 in
-      Data.store_todos { todos = updated_todos };
-      main_tui_loop t pos selected_index { todos = updated_todos })
-  | `Key (`ASCII 'k', _) ->
-    if selected_index <= 0
-    then main_tui_loop t pos selected_index folders
-    else (
-      let updated_todos = change_todo_priority folders.todos selected_index (-1) in
-      let selected_index = selected_index - 1 in
-      Data.store_todos { todos = updated_todos };
-      main_tui_loop t pos selected_index { todos = updated_todos })
-  | `Key (`ASCII 'e', _) ->
-    clear_screen t;
-    let todo = List.nth folders.todos selected_index in
-    (match prompt_for_title_and_description todo.title todo.description with
-     | None -> main_tui_loop t pos selected_index folders
-     | Some (title, description) ->
-       let new_todo = { todo with title; description } in
-       let updated_todos =
-         List.mapi (fun i t -> if i = selected_index then new_todo else t) folders.todos
-       in
-       let updated_todo_list = { todos = updated_todos } in
-       Data.store_todos updated_todo_list;
-       main_tui_loop (Term.create ()) pos 0 updated_todo_list)
+    main_tui_loop t pos selected_index (toggle_display_list_nth folders selected_index)
+  (*TODO: Delete selected item *)
+  (* | `Key (`ASCII 'D', [ `Ctrl ]) -> *)
+  (*   let updated_todos = List.filteri (fun i _ -> i <> selected_index) folders.todos in *)
+  (*   let updated_todo_list = { todos = updated_todos } in *)
+  (*   main_tui_loop t pos selected_index updated_todo_list *)
+  (*TODO: Create new todo item *)
+  (* | `Key (`ASCII 'a', _) -> *)
+  (*   clear_screen t; *)
+  (*   (match prompt_for_title_and_description "" "" with *)
+  (*    | None -> main_tui_loop t pos selected_index folders *)
+  (*    | Some (title, description) -> *)
+  (*      let new_todo = { title; description; completed = false } in *)
+  (*      let updated_todos = new_todo :: folders.todos in *)
+  (*      let updated_todo_list = { todos = updated_todos } in *)
+  (*      Data.store_todos updated_todo_list; *)
+  (*      main_tui_loop (Term.create ()) pos 0 updated_todo_list) *)
+  (*   (* Shift item up or down *) *)
+  (* | `Key (`ASCII 'j', _) -> *)
+  (*   if selected_index >= List.length folders.todos - 1 *)
+  (*   then main_tui_loop t pos selected_index folders *)
+  (*   else ( *)
+  (*     let updated_todos = change_todo_priority folders.todos selected_index 1 in *)
+  (*     let selected_index = selected_index + 1 in *)
+  (*     Data.store_todos { todos = updated_todos }; *)
+  (*     main_tui_loop t pos selected_index { todos = updated_todos }) *)
+  (* | `Key (`ASCII 'k', _) -> *)
+  (*   if selected_index <= 0 *)
+  (*   then main_tui_loop t pos selected_index folders *)
+  (*   else ( *)
+  (*     let updated_todos = change_todo_priority folders.todos selected_index (-1) in *)
+  (*     let selected_index = selected_index - 1 in *)
+  (*     Data.store_todos { todos = updated_todos }; *)
+  (*     main_tui_loop t pos selected_index { todos = updated_todos }) *)
+  (* | `Key (`ASCII 'e', _) -> *)
+  (*   clear_screen t; *)
+  (*   let todo = List.nth folders.todos selected_index in *)
+  (*   (match prompt_for_title_and_description todo.title todo.description with *)
+  (*    | None -> main_tui_loop t pos selected_index folders *)
+  (*    | Some (title, description) -> *)
+  (*      let new_todo = { todo with title; description } in *)
+  (*      let updated_todos = *)
+  (*        List.mapi (fun i t -> if i = selected_index then new_todo else t) folders.todos *)
+  (*      in *)
+  (*      let updated_todo_list = { todos = updated_todos } in *)
+  (*      Data.store_todos updated_todo_list; *)
+  (*      main_tui_loop (Term.create ()) pos 0 updated_todo_list) *)
   | _ -> main_tui_loop t pos selected_index folders
 ;;
