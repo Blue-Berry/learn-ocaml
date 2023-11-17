@@ -29,8 +29,8 @@ let img_of_string s width attr =
 
 open Data
 
-let print_todos selected_index todo_list =
-  let todos_with_index = List.mapi (fun i todo -> i, todo) todo_list.todos in
+let print_todos selected_index (todos : Data.todo list) =
+  let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
   let image =
     List.map
       (fun (i, todo) ->
@@ -58,6 +58,25 @@ let print_todos selected_index todo_list =
     |> I.vcat
   in
   image
+;;
+
+let populate_display_list selected_index folders =
+  let rec aux selected_index folders =
+    match folders with
+    | [] -> I.empty
+    | folder :: rest ->
+      if folder.open_folder = false
+      then (
+        let folder_img = img_of_string ("+ " ^ folder.name) 80 A.(fg lightyellow) in
+        (* folder_img :: populate_display_list rest) *)
+        I.vcat [ folder_img; aux selected_index rest ])
+      else (
+        let folder_img = img_of_string ("- " ^ folder.name) 80 A.(fg lightyellow) in
+        (* folder_img :: print_todos selected_index folder.todos :: populate_display_list rest) *)
+        I.vcat
+          [ folder_img; print_todos selected_index folder.todos; aux selected_index rest ])
+  in
+  aux selected_index folders
 ;;
 
 open Common
@@ -217,19 +236,19 @@ let prompt_for_title_and_description title description =
      | _ -> None)
 ;;
 
-let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
+let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
   let img =
-    let todos_img = print_todos selected_index todo_list in
+    let todos_img = print_todos selected_index folders in
     let combined_img = todos_img in
     combined_img
   in
   Term.image t img;
   match Term.event t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
-    Data.store_todos todo_list
-  | `Resize _ -> main_tui_loop t pos selected_index todo_list
+    Data.store_todos folders
+  | `Resize _ -> main_tui_loop t pos selected_index folders
   | `Key (`Arrow d, _) ->
-    let max_index = List.length todo_list.todos - 1 in
+    let max_index = List.length folders.todos - 1 in
     let new_index =
       match d with
       | `Up -> max 0 (selected_index - 1)
@@ -244,62 +263,60 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
       | `Left -> x, y
       | `Right -> x, y
     in
-    main_tui_loop t new_pos new_index todo_list
+    main_tui_loop t new_pos new_index folders
   | `Key (`Enter, _) ->
-    let todo = List.nth todo_list.todos selected_index in
+    let todo = List.nth folders.todos selected_index in
     let updated_todo = { todo with completed = not todo.completed } in
     let updated_todos =
-      List.mapi
-        (fun i t -> if i = selected_index then updated_todo else t)
-        todo_list.todos
+      List.mapi (fun i t -> if i = selected_index then updated_todo else t) folders.todos
     in
     let updated_todo_list = { todos = updated_todos } in
     main_tui_loop t pos selected_index updated_todo_list
     (* Delete selected item *)
   | `Key (`ASCII 'D', [ `Ctrl ]) ->
-    let updated_todos = List.filteri (fun i _ -> i <> selected_index) todo_list.todos in
+    let updated_todos = List.filteri (fun i _ -> i <> selected_index) folders.todos in
     let updated_todo_list = { todos = updated_todos } in
     main_tui_loop t pos selected_index updated_todo_list
     (* Create new todo item *)
   | `Key (`ASCII 'a', _) ->
     clear_screen t;
     (match prompt_for_title_and_description "" "" with
-     | None -> main_tui_loop t pos selected_index todo_list
+     | None -> main_tui_loop t pos selected_index folders
      | Some (title, description) ->
        let new_todo = { title; description; completed = false } in
-       let updated_todos = new_todo :: todo_list.todos in
+       let updated_todos = new_todo :: folders.todos in
        let updated_todo_list = { todos = updated_todos } in
        Data.store_todos updated_todo_list;
        main_tui_loop (Term.create ()) pos 0 updated_todo_list)
     (* Shift item up or down *)
   | `Key (`ASCII 'j', _) ->
-    if selected_index >= List.length todo_list.todos - 1
-    then main_tui_loop t pos selected_index todo_list
+    if selected_index >= List.length folders.todos - 1
+    then main_tui_loop t pos selected_index folders
     else (
-      let updated_todos = change_todo_priority todo_list.todos selected_index 1 in
+      let updated_todos = change_todo_priority folders.todos selected_index 1 in
       let selected_index = selected_index + 1 in
       Data.store_todos { todos = updated_todos };
       main_tui_loop t pos selected_index { todos = updated_todos })
   | `Key (`ASCII 'k', _) ->
     if selected_index <= 0
-    then main_tui_loop t pos selected_index todo_list
+    then main_tui_loop t pos selected_index folders
     else (
-      let updated_todos = change_todo_priority todo_list.todos selected_index (-1) in
+      let updated_todos = change_todo_priority folders.todos selected_index (-1) in
       let selected_index = selected_index - 1 in
       Data.store_todos { todos = updated_todos };
       main_tui_loop t pos selected_index { todos = updated_todos })
   | `Key (`ASCII 'e', _) ->
     clear_screen t;
-    let todo = List.nth todo_list.todos selected_index in
+    let todo = List.nth folders.todos selected_index in
     (match prompt_for_title_and_description todo.title todo.description with
-     | None -> main_tui_loop t pos selected_index todo_list
+     | None -> main_tui_loop t pos selected_index folders
      | Some (title, description) ->
        let new_todo = { todo with title; description } in
        let updated_todos =
-         List.mapi (fun i t -> if i = selected_index then new_todo else t) todo_list.todos
+         List.mapi (fun i t -> if i = selected_index then new_todo else t) folders.todos
        in
        let updated_todo_list = { todos = updated_todos } in
        Data.store_todos updated_todo_list;
        main_tui_loop (Term.create ()) pos 0 updated_todo_list)
-  | _ -> main_tui_loop t pos selected_index todo_list
+  | _ -> main_tui_loop t pos selected_index folders
 ;;
