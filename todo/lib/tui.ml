@@ -239,7 +239,6 @@ let display_list_of_folders folders =
   aux folders [] 0
 ;;
 
-(* TODO:test this *)
 let toggle_display_list_nth folders n =
   let rec aux folders n acc =
     match folders, n with
@@ -250,9 +249,9 @@ let toggle_display_list_nth folders n =
       if not folder.is_open
       then aux rest (n - 1) (folder :: acc)
       else (
-        let sub_folder, n = aux folder.folders (n - 1) (folder :: acc) in
+        let sub_folder, n = aux folder.folders (n - 1) [] in
         if n = 0
-        then List.rev acc @ sub_folder @ rest, 0
+        then List.rev acc @ [ { folder with folders = sub_folder } ] @ rest, 0
         else if n < List.length folder.todos
         then aux rest (n - List.length folder.todos) (acc @ sub_folder)
         else
@@ -267,6 +266,28 @@ let toggle_display_list_nth folders n =
   let folders, _ = aux folders n [] in
   folders
 ;;
+
+(* let toggle_display_list_nth folders n = *)
+(*   let rec aux folders n acc = *)
+(*     Printf.printf "n: %d\n" n; *)
+(*     Printf.printf "acc: %d\n" (List.length acc); *)
+(*     Printf.printf "folders: %d\n" (List.length folders); *)
+(*     match folders, n with *)
+(*     | [], _ -> List.rev acc, n *)
+(*     | folder :: rest, 0 -> *)
+(*       let new_folder = { folder with is_open = not folder.is_open } in *)
+(*       List.rev_append acc (new_folder :: rest), 0 *)
+(*     | folder :: rest, n -> *)
+(*       if not folder.is_open *)
+(*       then aux rest (n - 1) (folder :: acc) *)
+(*       else ( *)
+(*         let sub_folder, n = aux folder.folders (n - 1) [] in *)
+(*         let updated_folder = { folder with folders = List.rev sub_folder } in *)
+(*         aux rest n (updated_folder :: acc)) *)
+(*   in *)
+(*   let folders, _ = aux folders n [] in *)
+(*   folders *)
+(* ;; *)
 
 let img_of_display_list list selected_index =
   let rec aux list selected_index acc n =
@@ -285,6 +306,8 @@ let img_of_display_list list selected_index =
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
+      (* TODO: update this character *)
+      let prefix = if folder.is_open then " + " else " - " in
       let attr =
         if n = selected_index
         then A.(fg red)
@@ -292,7 +315,7 @@ let img_of_display_list list selected_index =
         then A.(fg lightmagenta)
         else A.(fg lightblue)
       in
-      let string_img = img_of_string folder.name 80 attr in
+      let string_img = img_of_string (prefix ^ folder.name) 80 attr in
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
   in
