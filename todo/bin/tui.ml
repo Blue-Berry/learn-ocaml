@@ -260,6 +260,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
        let new_todo = { title; description; completed = false } in
        let updated_todos = new_todo :: todo_list.todos in
        let updated_todo_list = { todos = updated_todos } in
+       Data.store_todos updated_todo_list;
        main_tui_loop (Term.create ()) pos 0 updated_todo_list)
     (* Shift item up or down *)
   | `Key (`ASCII 'j', _) ->
@@ -268,6 +269,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
     else (
       let updated_todos = change_todo_priority todo_list.todos selected_index 1 in
       let selected_index = selected_index + 1 in
+      Data.store_todos { todos = updated_todos };
       main_tui_loop t pos selected_index { todos = updated_todos })
   | `Key (`ASCII 'k', _) ->
     if selected_index <= 0
@@ -275,6 +277,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
     else (
       let updated_todos = change_todo_priority todo_list.todos selected_index (-1) in
       let selected_index = selected_index - 1 in
+      Data.store_todos { todos = updated_todos };
       main_tui_loop t pos selected_index { todos = updated_todos })
   | `Key (`ASCII 'e', _) ->
     clear_screen t;
@@ -287,6 +290,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index todo_list =
          List.mapi (fun i t -> if i = selected_index then new_todo else t) todo_list.todos
        in
        let updated_todo_list = { todos = updated_todos } in
+       Data.store_todos updated_todo_list;
        main_tui_loop (Term.create ()) pos 0 updated_todo_list)
   | _ -> main_tui_loop t pos selected_index todo_list
 ;;
