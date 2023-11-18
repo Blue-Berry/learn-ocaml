@@ -241,7 +241,6 @@ let display_list_of_folders folders =
 
 (** [toggle_display_list_nth n folders] **)
 let toggle_display_list_nth n folders =
-  (* BUG: toggle of 2nd parent buggy *)
   let rec aux folders acc n =
     match folders, n with
     | [], _ ->
@@ -291,7 +290,7 @@ let toggle_display_list_nth n folders =
             folder.todos
         in
         List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0)
-      else aux rest (folder :: acc) (n - List.length folder.todos)
+      else aux rest (folder :: acc) (n - List.length folder.todos - 1)
   in
   let folders, _ = aux folders [] n in
   folders
