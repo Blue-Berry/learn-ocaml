@@ -252,7 +252,7 @@ let toggle_display_list_nth n folders =
     | ({ is_open = false; _ } as folder) :: rest, n ->
       let () = Printf.printf "folder closed \n" in
       aux rest (folder :: acc) (n - 1)
-    | ({ folders = []; _ } as folder) :: rest, n when n < List.length folder.todos ->
+    | ({ folders = []; _ } as folder) :: rest, n when n <= List.length folder.todos ->
       let () =
         Printf.printf
           "Empty sub folders and n, lst %d < %d\n"
@@ -274,7 +274,7 @@ let toggle_display_list_nth n folders =
       in
       aux rest (folder :: acc) (n - List.length folder.todos)
     | ({ is_open = true; folders = sub_folders; _ } as folder) :: rest, n ->
-      let () = Printf.printf "folder open \n" in
+      let () = Printf.printf "folder open with n: %d \n" n in
       let new_sub_folders, n = aux sub_folders [] (n - 1) in
       if n = 0
       then List.rev acc @ [ { folder with folders = new_sub_folders } ] @ rest, 0
