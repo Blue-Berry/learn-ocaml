@@ -7,7 +7,9 @@ let folders : Lib.Data.folders =
           ; is_open = true
           ; folders = []
           ; todos =
-              [ { title = "test todo"; description = "test todo"; completed = false } ]
+              [ { title = "test todo"; description = "test todo"; completed = false }
+              ; { title = "test todo"; description = "test todo"; completed = false }
+              ]
           }
         ]
     ; todos =

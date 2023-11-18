@@ -239,58 +239,58 @@ let display_list_of_folders folders =
   aux folders [] 0
 ;;
 
-let toggle_display_list_nth folders n =
-  let rec aux folders n acc =
+(* BUG: todo's not working properly probs a n-1 somewhere*)
+let toggle_display_list_nth n folders =
+  let rec aux folders acc n =
     match folders, n with
-    | [], _ -> [], n
+    | [], _ ->
+      let () = Printf.printf "Empty array \n" in
+      List.rev acc, n
     | folder :: rest, 0 ->
+      let () = Printf.printf "folder n=0 \n" in
       List.rev acc @ [ { folder with is_open = not folder.is_open } ] @ rest, 0
-    | folder :: rest, n ->
-      if not folder.is_open
-      then aux rest (n - 1) (folder :: acc)
-      else (
-        let sub_folder, n = aux folder.folders (n - 1) [] in
-        if n = 0
-        then List.rev acc @ [ { folder with folders = sub_folder } ] @ rest, 0
-        else if n < List.length folder.todos - 1
-        then aux rest (n - List.length folder.todos) (acc @ sub_folder)
-        else
-          ( (let new_todos =
-               List.mapi
-                 (fun i t ->
-                   let () = Printf.printf "i: %d\n" i in
-                   let () = Printf.printf "n: %d\n" n in
-                   if i = n then { t with completed = not t.completed } else t)
-                 folder.todos
-             in
-             List.rev acc @ [ { folder with todos = new_todos } ] @ rest)
-          , 0 ))
+    | ({ is_open = false; _ } as folder) :: rest, n ->
+      let () = Printf.printf "folder closed \n" in
+      aux rest (folder :: acc) (n - 1)
+    | ({ folders = []; _ } as folder) :: rest, n when n < List.length folder.todos ->
+      let () =
+        Printf.printf
+          "Empty sub folders and n, lst %d < %d\n"
+          n
+          (List.length folder.todos)
+      in
+      let new_todos =
+        List.mapi
+          (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
+          folder.todos
+      in
+      List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0
+    | ({ folders = []; _ } as folder) :: rest, n ->
+      let () =
+        Printf.printf
+          "Empty sub folders and n, lst %d >= %d\n"
+          n
+          (List.length folder.todos)
+      in
+      aux rest (folder :: acc) (n - List.length folder.todos)
+    | ({ is_open = true; folders = sub_folders; _ } as folder) :: rest, n ->
+      let () = Printf.printf "folder open \n" in
+      let new_sub_folders, n = aux sub_folders [] (n - 1) in
+      if n = 0
+      then List.rev acc @ [ { folder with folders = new_sub_folders } ] @ rest, 0
+      else if n < List.length folder.todos
+      then (
+        let new_todos =
+          List.mapi
+            (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
+            folder.todos
+        in
+        List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0)
+      else aux rest (folder :: acc) (n - List.length folder.todos)
   in
-  let folders, _ = aux folders n [] in
+  let folders, _ = aux folders [] n in
   folders
 ;;
-
-(* let toggle_display_list_nth folders n = *)
-(*   let rec aux folders n acc = *)
-(*     Printf.printf "n: %d\n" n; *)
-(*     Printf.printf "acc: %d\n" (List.length acc); *)
-(*     Printf.printf "folders: %d\n" (List.length folders); *)
-(*     match folders, n with *)
-(*     | [], _ -> List.rev acc, n *)
-(*     | folder :: rest, 0 -> *)
-(*       let new_folder = { folder with is_open = not folder.is_open } in *)
-(*       List.rev_append acc (new_folder :: rest), 0 *)
-(*     | folder :: rest, n -> *)
-(*       if not folder.is_open *)
-(*       then aux rest (n - 1) (folder :: acc) *)
-(*       else ( *)
-(*         let sub_folder, n = aux folder.folders (n - 1) [] in *)
-(*         let updated_folder = { folder with folders = List.rev sub_folder } in *)
-(*         aux rest n (updated_folder :: acc)) *)
-(*   in *)
-(*   let folders, _ = aux folders n [] in *)
-(*   folders *)
-(* ;; *)
 
 let img_of_display_list list selected_index =
   let rec aux list selected_index acc n =
@@ -334,12 +334,12 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
   | `Resize _ -> main_tui_loop t pos selected_index folders
   | `Key (`Arrow d, _) ->
     (* let max_index = List.length folders.todos - 1 in *)
-    let max_index =
-      List.fold_left
-        (fun acc f -> acc + if f.is_open = false then 1 else 1 + List.length f.todos)
-        0
-        folders
-    in
+    (* let max_index = *)
+    (*   List.fold_left *)
+    (*     (fun acc f -> acc + if f.is_open = false then 1 else 1 + List.length f.todos) *)
+    (*     0 *)
+    (*     folders *)
+    let max_index = List.length (display_list_of_folders folders) - 1 in
     let new_index =
       match d with
       | `Up -> max 0 (selected_index - 1)
@@ -356,7 +356,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     in
     main_tui_loop t new_pos new_index folders
   | `Key (`Enter, _) ->
-    main_tui_loop t pos selected_index (toggle_display_list_nth folders selected_index)
+    main_tui_loop t pos selected_index (toggle_display_list_nth selected_index folders)
   (*TODO: Delete selected item *)
   (* | `Key (`ASCII 'D', [ `Ctrl ]) -> *)
   (*   let updated_todos = List.filteri (fun i _ -> i <> selected_index) folders.todos in *)
