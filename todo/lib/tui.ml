@@ -241,27 +241,18 @@ let display_list_of_folders folders =
 
 (** [toggle_display_list_nth n folders] **)
 let toggle_display_list_nth n folders =
-  (* BUG: when parent closed *)
+  (* TODO: change this to accept function to be applied to nth item *)
   let rec aux folders acc n =
     match folders, n with
     | [], _ ->
-      let () = Printf.printf "Empty array \n" in
       (* NOTE: rev acc? *)
       acc, n
     | folder :: rest, 0 ->
-      let () = Printf.printf "folder %s n=0 \n" folder.name in
       List.rev acc @ [ { folder with is_open = not folder.is_open } ] @ rest, 0
-    | ({ is_open = false; _ } as folder) :: rest, n ->
-      let () = Printf.printf "folder %s closed \n" folder.name in
-      aux rest (folder :: acc) (n - 1)
+    | ({ is_open = false; _ } as folder) :: [], n ->
+      List.rev acc @ [ { folder with is_open = not folder.is_open } ], n
+    | ({ is_open = false; _ } as folder) :: rest, n -> aux rest (folder :: acc) (n - 1)
     | ({ folders = []; _ } as folder) :: rest, n when n <= List.length folder.todos ->
-      let () =
-        Printf.printf
-          "%s Empty sub folders and n, lst %d <= %d\n"
-          folder.name
-          n
-          (List.length folder.todos)
-      in
       let new_todos =
         List.mapi
           (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
@@ -269,22 +260,13 @@ let toggle_display_list_nth n folders =
       in
       List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0
     | ({ folders = []; _ } as folder) :: rest, n when n >= List.length folder.todos ->
-      let () =
-        Printf.printf
-          "%s Empty sub folders and n, lst %d >= %d\n"
-          folder.name
-          n
-          (List.length folder.todos)
-      in
       aux rest (folder :: acc) (n - List.length folder.todos)
     | ({ is_open = true; folders = sub_folders; _ } as folder) :: rest, n ->
-      let () = Printf.printf "%s folder open with n: %d \n" folder.name n in
       let new_sub_folders, n = aux sub_folders [] (n - 1) in
       if n = 0
       then List.rev acc @ [ { folder with folders = new_sub_folders } ] @ rest, 0
       else if n < List.length folder.todos + 1
       then (
-        let () = Printf.printf "%s new todos with n: %d \n" folder.name n in
         let new_todos =
           List.mapi
             (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
@@ -314,7 +296,6 @@ let img_of_display_list list selected_index =
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
-      (* TODO: update this character *)
       let prefix = if folder.is_open then "  " else "  " in
       let attr =
         if n = selected_index

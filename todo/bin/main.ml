@@ -4,7 +4,7 @@ let folders : Lib.Data.folders =
     ; is_open = true
     ; folders =
         [ { name = "child1"
-          ; is_open = true
+          ; is_open = false
           ; folders = []
           ; todos =
               [ { title = "test todo"; description = "test todo"; completed = false }
