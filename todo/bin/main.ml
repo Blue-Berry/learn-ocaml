@@ -1,9 +1,9 @@
 (* let folders = Lib.Data.get_todos () *)
 let folders : Lib.Data.folders =
-  [ { name = "test folder"
+  [ { name = "parent1"
     ; is_open = true
     ; folders =
-        [ { name = "test folder"
+        [ { name = "child1"
           ; is_open = true
           ; folders = []
           ; todos =
@@ -17,10 +17,10 @@ let folders : Lib.Data.folders =
         ; { title = "test todo"; description = "test todo"; completed = false }
         ]
     }
-  ; { name = "test folder"
+  ; { name = "parent2"
     ; is_open = true
     ; folders =
-        [ { name = "test folder"
+        [ { name = "child2"
           ; is_open = true
           ; folders = []
           ; todos =
