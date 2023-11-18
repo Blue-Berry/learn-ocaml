@@ -241,6 +241,7 @@ let display_list_of_folders folders =
 
 (** [toggle_display_list_nth n folders] **)
 let toggle_display_list_nth n folders =
+  (* BUG: when parent closed *)
   let rec aux folders acc n =
     match folders, n with
     | [], _ ->
@@ -303,18 +304,18 @@ let img_of_display_list list selected_index =
     | Todo (todo, indent) :: rest ->
       let checkbox = if todo.completed then " ✓ " else " ○ " in
       let attr =
-        if todo.completed
-        then A.fg A.lightgreen
-        else if n = selected_index
-        then A.(fg red)
-        else A.(fg blue)
+        match todo.completed, n with
+        | true, _ when n = selected_index -> A.fg A.cyan
+        | true, _ -> A.fg A.lightgreen
+        | false, _ when n = selected_index -> A.fg A.red
+        | false, _ -> A.fg A.blue
       in
       let string_img = img_of_string (checkbox ^ todo.title) 80 attr in
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
       (* TODO: update this character *)
-      let prefix = if folder.is_open then " + " else " - " in
+      let prefix = if folder.is_open then "  " else "  " in
       let attr =
         if n = selected_index
         then A.(fg red)
@@ -337,12 +338,6 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     Data.store_todos folders
   | `Resize _ -> main_tui_loop t pos selected_index folders
   | `Key (`Arrow d, _) ->
-    (* let max_index = List.length folders.todos - 1 in *)
-    (* let max_index = *)
-    (*   List.fold_left *)
-    (*     (fun acc f -> acc + if f.is_open = false then 1 else 1 + List.length f.todos) *)
-    (*     0 *)
-    (*     folders *)
     let max_index = List.length (display_list_of_folders folders) - 1 in
     let new_index =
       match d with
