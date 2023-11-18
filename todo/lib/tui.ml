@@ -307,14 +307,13 @@ let img_of_display_list list selected_index =
         match todo.completed, n with
         | true, _ when n = selected_index -> A.fg A.cyan
         | true, _ -> A.fg A.lightgreen
-        | false, _ when n = selected_index -> A.fg A.red
+        | false, _ when n = selected_index -> A.fg A.yellow
         | false, _ -> A.fg A.blue
       in
       let title_img = img_of_string (checkbox ^ todo.title) 80 attr in
       let desc_img =
         match selected_index with
-        | _ when n = selected_index ->
-          img_of_string todo.description 80 A.(fg lightmagenta)
+        | _ when n = selected_index -> img_of_string todo.description 80 attr
         | _ -> I.empty
       in
       let todo_img = I.vcat [ title_img; I.(void 4 0 <|> desc_img) ] in
@@ -322,13 +321,7 @@ let img_of_display_list list selected_index =
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
       let prefix = if folder.is_open then "  " else "  " in
-      let attr =
-        if n = selected_index
-        then A.(fg red)
-        else if folder.is_open
-        then A.(fg lightmagenta)
-        else A.(fg lightblue)
-      in
+      let attr = if n = selected_index then A.(fg yellow) else A.(fg red) in
       let string_img = img_of_string (prefix ^ folder.name) 80 attr in
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
