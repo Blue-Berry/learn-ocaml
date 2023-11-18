@@ -310,8 +310,15 @@ let img_of_display_list list selected_index =
         | false, _ when n = selected_index -> A.fg A.red
         | false, _ -> A.fg A.blue
       in
-      let string_img = img_of_string (checkbox ^ todo.title) 80 attr in
-      let img = I.hpad indent 0 string_img in
+      let title_img = img_of_string (checkbox ^ todo.title) 80 attr in
+      let desc_img =
+        match selected_index with
+        | _ when n = selected_index ->
+          img_of_string todo.description 80 A.(fg lightmagenta)
+        | _ -> I.empty
+      in
+      let todo_img = I.vcat [ title_img; I.(void 4 0 <|> desc_img) ] in
+      let img = I.hpad indent 0 todo_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
       let prefix = if folder.is_open then "  " else "  " in
@@ -354,6 +361,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     in
     main_tui_loop t new_pos new_index folders
   | `Key (`Enter, _) ->
+    let () = Data.store_todos folders in
     main_tui_loop
       t
       pos
@@ -364,6 +372,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
          toggle_folder_status
          toggle_todo_status)
   | `Key (`ASCII 'D', [ `Ctrl ]) ->
+    let () = Data.store_todos folders in
     main_tui_loop
       t
       pos
@@ -375,6 +384,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     (match prompt_for_title_and_description "" "" with
      | None -> main_tui_loop t pos selected_index folders
      | Some (title, description) ->
+       let () = Data.store_todos folders in
        main_tui_loop
          t
          pos
