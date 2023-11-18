@@ -189,6 +189,7 @@ let prompt_for_title_and_description title description =
      | _ -> None)
 ;;
 
+(* TODO: remove this function *)
 let print_todos selected_index (todos : Data.todo list) =
   let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
   let image =
@@ -239,25 +240,18 @@ let display_list_of_folders folders =
   aux folders [] 0
 ;;
 
-(** [toggle_display_list_nth n folders] **)
-let toggle_display_list_nth n folders =
-  (* TODO: change this to accept function to be applied to nth item *)
+(** [toggle_display_list_nth n folders folder_map todo_map] **)
+let map_display_list_nth n folders folder_map todo_map =
   let rec aux folders acc n =
     match folders, n with
     | [], _ ->
       (* NOTE: rev acc? *)
       acc, n
-    | folder :: rest, 0 ->
-      List.rev acc @ [ { folder with is_open = not folder.is_open } ] @ rest, 0
-    | ({ is_open = false; _ } as folder) :: [], n ->
-      List.rev acc @ [ { folder with is_open = not folder.is_open } ], n
+    | folder :: rest, 0 -> List.rev acc @ folder_map folder @ rest, 0
+    | ({ is_open = false; _ } as folder) :: [], n -> List.rev acc @ folder_map folder, n
     | ({ is_open = false; _ } as folder) :: rest, n -> aux rest (folder :: acc) (n - 1)
     | ({ folders = []; _ } as folder) :: rest, n when n <= List.length folder.todos ->
-      let new_todos =
-        List.mapi
-          (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
-          folder.todos
-      in
+      let new_todos = todo_map folder.todos n in
       List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0
     | ({ folders = []; _ } as folder) :: rest, n when n >= List.length folder.todos ->
       aux rest (folder :: acc) (n - List.length folder.todos)
@@ -267,16 +261,40 @@ let toggle_display_list_nth n folders =
       then List.rev acc @ [ { folder with folders = new_sub_folders } ] @ rest, 0
       else if n < List.length folder.todos + 1
       then (
-        let new_todos =
-          List.mapi
-            (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
-            folder.todos
-        in
+        let new_todos = todo_map folder.todos n in
         List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0)
       else aux rest (folder :: acc) (n - List.length folder.todos - 1)
   in
   let folders, _ = aux folders [] n in
   folders
+;;
+
+let toggle_folder_status folder = [ { folder with is_open = not folder.is_open } ]
+
+let toggle_todo_status todos n =
+  let new_todos =
+    List.mapi
+      (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
+      todos
+  in
+  new_todos
+;;
+
+let delete_todo todos n =
+  let new_todos = List.filteri (fun i _ -> i <> n - 1) todos in
+  new_todos
+;;
+
+let delete_folder _ = []
+
+let add_new_todo title description todos _ =
+  let new_todo = { title; description; completed = false } in
+  new_todo :: todos
+;;
+
+let add_new_folder name folder =
+  let new_folder = { name; is_open = false; todos = []; folders = [] } in
+  [ new_folder; folder ]
 ;;
 
 let img_of_display_list list selected_index =
@@ -336,24 +354,37 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     in
     main_tui_loop t new_pos new_index folders
   | `Key (`Enter, _) ->
-    main_tui_loop t pos selected_index (toggle_display_list_nth selected_index folders)
-  (*TODO: Delete selected item *)
-  (* | `Key (`ASCII 'D', [ `Ctrl ]) -> *)
-  (*   let updated_todos = List.filteri (fun i _ -> i <> selected_index) folders.todos in *)
-  (*   let updated_todo_list = { todos = updated_todos } in *)
-  (*   main_tui_loop t pos selected_index updated_todo_list *)
-  (*TODO: Create new todo item *)
-  (* | `Key (`ASCII 'a', _) -> *)
-  (*   clear_screen t; *)
-  (*   (match prompt_for_title_and_description "" "" with *)
-  (*    | None -> main_tui_loop t pos selected_index folders *)
-  (*    | Some (title, description) -> *)
-  (*      let new_todo = { title; description; completed = false } in *)
-  (*      let updated_todos = new_todo :: folders.todos in *)
-  (*      let updated_todo_list = { todos = updated_todos } in *)
-  (*      Data.store_todos updated_todo_list; *)
-  (*      main_tui_loop (Term.create ()) pos 0 updated_todo_list) *)
-  (*   (* Shift item up or down *) *)
+    main_tui_loop
+      t
+      pos
+      selected_index
+      (map_display_list_nth
+         selected_index
+         folders
+         toggle_folder_status
+         toggle_todo_status)
+  | `Key (`ASCII 'D', [ `Ctrl ]) ->
+    main_tui_loop
+      t
+      pos
+      selected_index
+      (map_display_list_nth selected_index folders delete_folder delete_todo)
+  | `Key (`ASCII 'a', _) ->
+    clear_screen t;
+    (* TODO: check if selected item is a folder or todo *)
+    (match prompt_for_title_and_description "" "" with
+     | None -> main_tui_loop t pos selected_index folders
+     | Some (title, description) ->
+       main_tui_loop
+         t
+         pos
+         selected_index
+         (map_display_list_nth
+            selected_index
+            folders
+            (add_new_folder title)
+            (add_new_todo title description)))
+  (* Shift item up or down *)
   (* | `Key (`ASCII 'j', _) -> *)
   (*   if selected_index >= List.length folders.todos - 1 *)
   (*   then main_tui_loop t pos selected_index folders *)
