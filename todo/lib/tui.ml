@@ -252,12 +252,15 @@ let toggle_display_list_nth folders n =
         let sub_folder, n = aux folder.folders (n - 1) [] in
         if n = 0
         then List.rev acc @ [ { folder with folders = sub_folder } ] @ rest, 0
-        else if n < List.length folder.todos
+        else if n < List.length folder.todos - 1
         then aux rest (n - List.length folder.todos) (acc @ sub_folder)
         else
           ( (let new_todos =
                List.mapi
-                 (fun i t -> if i = n then { t with completed = not t.completed } else t)
+                 (fun i t ->
+                   let () = Printf.printf "i: %d\n" i in
+                   let () = Printf.printf "n: %d\n" n in
+                   if i = n then { t with completed = not t.completed } else t)
                  folder.todos
              in
              List.rev acc @ [ { folder with todos = new_todos } ] @ rest)
