@@ -397,16 +397,15 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
     (match prompt_for_title_and_description "" "" with
      | None -> main_tui_loop t pos selected_index folders
      | Some (title, description) ->
+       let folders =
+         map_display_list_nth
+           selected_index
+           folders
+           (add_new_todo_in_folder title description)
+           (add_new_todo title description)
+       in
        let () = Data.store_todos folders in
-       main_tui_loop
-         t
-         pos
-         selected_index
-         (map_display_list_nth
-            selected_index
-            folders
-            (add_new_todo_in_folder title description)
-            (add_new_todo title description)))
+       main_tui_loop t pos selected_index folders)
   (* Shift item up or down *)
   (* | `Key (`ASCII 'j', _) -> *)
   (*   if selected_index >= List.length folders.todos - 1 *)
