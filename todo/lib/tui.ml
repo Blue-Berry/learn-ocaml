@@ -34,6 +34,7 @@ let img_of_string s width attr =
 open Data
 open Common
 
+(* [clear_screen term] Clears the previous state of the screen to allow for the prompt probably remove once a popup prompt is made *)
 let clear_screen t =
   let reset_terminal () =
     let t = Unix.tcgetattr Unix.stdin in
@@ -46,7 +47,7 @@ let clear_screen t =
   Term.image t img
 ;;
 
-(* function used for removing a character at a cursor position *)
+(*[remove at index str] function used for removing a character at a cursor position for backspace *)
 let remove_at index str =
   let len = String.length str in
   if index < 0 || index >= len
@@ -189,38 +190,6 @@ let prompt_for_title_and_description title description =
      | _ -> None)
 ;;
 
-(* TODO: remove this function *)
-let print_todos selected_index (todos : Data.todo list) =
-  let todos_with_index = List.mapi (fun i todo -> i, todo) todos in
-  let image =
-    List.map
-      (fun (i, todo) ->
-        let checkbox =
-          if i = selected_index
-          then if todo.completed then " ✓ " else " ○ "
-          else if todo.completed
-          then "✓ "
-          else "○ "
-        in
-        let attr =
-          if todo.completed
-          then A.fg A.lightgreen
-          else if i = selected_index
-          then A.(fg red)
-          else A.(fg blue)
-        in
-        let todo_img = img_of_string (checkbox ^ todo.title) 80 attr in
-        if i = selected_index
-        then (
-          let desc_img = img_of_string todo.description 80 A.(fg lightmagenta) in
-          I.vcat [ todo_img; I.(void 4 0 <|> desc_img) ])
-        else todo_img)
-      todos_with_index
-    |> I.vcat
-  in
-  image
-;;
-
 let display_list_of_folders folders =
   let rec aux folders acc indent =
     match folders with
@@ -302,7 +271,13 @@ let img_of_display_list list selected_index =
     match list with
     | [] -> acc
     | Todo (todo, indent) :: rest ->
-      let checkbox = if todo.completed then " ✓ " else " ○ " in
+      let checkbox =
+        match todo.completed, n with
+        | true, _ when n = selected_index -> " ✓ "
+        | true, _ -> " ✓ "
+        | false, _ when n = selected_index -> " ○ "
+        | false, _ -> " ○ "
+      in
       let attr =
         match todo.completed, n with
         | true, _ when n = selected_index -> A.fg A.cyan
@@ -320,7 +295,14 @@ let img_of_display_list list selected_index =
       let img = I.hpad indent 0 todo_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
-      let prefix = if folder.is_open then "  " else "  " in
+      (* let prefix = if folder.is_open then "  " else "  " in *)
+      let prefix =
+        match folder.is_open, n with
+        | true, _ when n = selected_index -> "  "
+        | true, _ -> "  "
+        | false, _ when n = selected_index -> "  "
+        | false, _ -> "  "
+      in
       let attr = if n = selected_index then A.(fg yellow) else A.(fg red) in
       let string_img = img_of_string (prefix ^ folder.name) 80 attr in
       let img = I.hpad indent 0 string_img in
