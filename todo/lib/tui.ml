@@ -190,6 +190,8 @@ let prompt_for_title_and_description title description =
      | _ -> None)
 ;;
 
+let prompt_for_title title = text_input_loop (Term.create ()) title "Enter the title:"
+
 let display_list_of_folders folders =
   let rec aux folders acc indent =
     match folders with
@@ -300,7 +302,6 @@ let img_of_display_list list selected_index =
       let img = I.hpad indent 0 todo_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
     | Folder (folder, indent) :: rest ->
-      (* let prefix = if folder.is_open then "  " else "  " in *)
       let prefix =
         match folder.is_open, n with
         | true, _ when n = selected_index -> "  "
@@ -361,20 +362,35 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
   (* add new folder *)
   | `Key (`ASCII 'A', [ `Ctrl ]) ->
     clear_screen t;
-    (* TODO: check if selected item is a folder or todo and only prompt title*)
-    (match prompt_for_title_and_description "" "" with
-     | None -> main_tui_loop t pos selected_index folders
-     | Some (title, description) ->
-       let () = Data.store_todos folders in
-       main_tui_loop
-         t
-         pos
-         selected_index
-         (map_display_list_nth
+    let item = List.nth (display_list_of_folders folders) selected_index in
+    (match item with
+     | Todo _ ->
+       (match prompt_for_title_and_description "" "" with
+        | None -> main_tui_loop t pos selected_index folders
+        | Some (title, description) ->
+          let () = Data.store_todos folders in
+          main_tui_loop
+            t
+            pos
             selected_index
-            folders
-            (add_new_folder title)
-            (add_new_todo title description)))
+            (map_display_list_nth
+               selected_index
+               folders
+               (add_new_folder title)
+               (add_new_todo title description)))
+     | Folder _ ->
+       (match prompt_for_title "" with
+        | None -> main_tui_loop t pos selected_index folders
+        | Some title ->
+          let folders =
+            map_display_list_nth
+              selected_index
+              folders
+              (add_new_folder title)
+              (fun todo _ -> todo)
+          in
+          let () = Data.store_todos folders in
+          main_tui_loop t pos selected_index folders))
   | `Key (`ASCII 'a', _) ->
     clear_screen t;
     (* TODO: check if selected item is a folder or todo *)
