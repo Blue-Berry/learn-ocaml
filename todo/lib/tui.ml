@@ -261,6 +261,11 @@ let add_new_todo title description todos _ =
   new_todo :: todos
 ;;
 
+let add_new_todo_in_folder title description folder =
+  let new_todo = { title; description; completed = false } in
+  [ { folder with todos = new_todo :: folder.todos } ]
+;;
+
 let add_new_folder name folder =
   let new_folder = { name; is_open = false; todos = []; folders = [] } in
   [ new_folder; folder ]
@@ -353,6 +358,23 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
       pos
       selected_index
       (map_display_list_nth selected_index folders delete_folder delete_todo)
+  (* add new folder *)
+  | `Key (`ASCII 'A', [ `Ctrl ]) ->
+    clear_screen t;
+    (* TODO: check if selected item is a folder or todo and only prompt title*)
+    (match prompt_for_title_and_description "" "" with
+     | None -> main_tui_loop t pos selected_index folders
+     | Some (title, description) ->
+       let () = Data.store_todos folders in
+       main_tui_loop
+         t
+         pos
+         selected_index
+         (map_display_list_nth
+            selected_index
+            folders
+            (add_new_folder title)
+            (add_new_todo title description)))
   | `Key (`ASCII 'a', _) ->
     clear_screen t;
     (* TODO: check if selected item is a folder or todo *)
@@ -367,7 +389,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
          (map_display_list_nth
             selected_index
             folders
-            (add_new_folder title)
+            (add_new_todo_in_folder title description)
             (add_new_todo title description)))
   (* Shift item up or down *)
   (* | `Key (`ASCII 'j', _) -> *)
