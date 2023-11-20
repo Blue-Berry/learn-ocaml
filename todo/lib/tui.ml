@@ -35,19 +35,6 @@ let img_of_string s width attr =
 open Data
 open Common
 
-(* [clear_screen term] Clears the previous state of the screen to allow for the prompt probably remove once a popup prompt is made *)
-let clear_screen t =
-  let reset_terminal () =
-    let t = Unix.tcgetattr Unix.stdin in
-    let t' = { t with Unix.c_echo = true; Unix.c_icanon = true } in
-    Unix.tcsetattr Unix.stdin Unix.TCSANOW t'
-  in
-  reset_terminal ();
-  Sys.command "clear" |> ignore;
-  let img = I.empty in
-  Term.image t img
-;;
-
 let display_list_of_folders folders =
   let rec aux folders acc indent =
     match folders with
@@ -71,9 +58,7 @@ let display_list_of_folders folders =
 let map_display_list_nth n folders folder_map todo_map =
   let rec aux folders acc n =
     match folders, n with
-    | [], _ ->
-      (* NOTE: rev acc? *)
-      acc, n
+    | [], _ -> acc, n
     | folder :: rest, 0 -> List.rev acc @ folder_map folder @ rest, 0
     | ({ is_open = false; _ } as folder) :: [], n -> List.rev acc @ folder_map folder, n
     | ({ is_open = false; _ } as folder) :: rest, n -> aux rest (folder :: acc) (n - 1)
@@ -129,24 +114,26 @@ let add_new_folder name folder =
   [ new_folder; folder ]
 ;;
 
-let edit_folder_title folder =
-  match Input.prompt_for_title folder.name with
+let edit_folder_title t folder =
+  match Input.prompt_for_title t folder.name with
   | None -> [ folder ]
   | Some name ->
     let new_folder = { folder with name } in
     [ new_folder ]
 ;;
 
-let edit_todo todos n =
+let edit_todo state todos n =
   let new_todos =
     List.mapi
-      (fun i t ->
+      (fun i todo ->
         if i = n - 1
         then (
-          match Input.prompt_for_title_and_description t.title t.description with
-          | None -> t
-          | Some (title, description) -> { t with title; description })
-        else t)
+          match
+            Input.prompt_for_title_and_description state todo.title todo.description
+          with
+          | None -> todo
+          | Some (title, description) -> { todo with title; description })
+        else todo)
       todos
   in
   new_todos
@@ -211,19 +198,16 @@ let img_of_display_list list selected_index =
   aux list selected_index I.empty 0
 ;;
 
-type state =
-  { t : Term.t
-  ; pos : int * int
-  ; selected_index : int
-  ; folders : Data.folders
-  }
+open Common
 
-(* TODO: move state variables into a record *)
-let rec main_tui_loop state =
-  let img =
-    img_of_display_list (display_list_of_folders state.folders) state.selected_index
+let rec main_tui_loop (state : Common.state) =
+  let state =
+    { state with
+      img =
+        img_of_display_list (display_list_of_folders state.folders) state.selected_index
+    }
   in
-  Term.image state.t img;
+  Term.image state.t state.img;
   match Term.event state.t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
     Data.store_todos state.folders
@@ -274,11 +258,10 @@ let rec main_tui_loop state =
     main_tui_loop state
   (* add new folder *)
   | `Key (`ASCII 'n', _) ->
-    clear_screen state.t;
     let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
      | Todo _ ->
-       (match Input.prompt_for_title_and_description "" "" with
+       (match Input.prompt_for_title_and_description state "" "" with
         | None -> main_tui_loop state
         | Some (title, description) ->
           let state =
@@ -294,7 +277,7 @@ let rec main_tui_loop state =
           let () = Data.store_todos state.folders in
           main_tui_loop state)
      | Folder _ ->
-       (match Input.prompt_for_title "" with
+       (match Input.prompt_for_title state "" with
         | None -> main_tui_loop state
         | Some title ->
           let folders =
@@ -307,9 +290,7 @@ let rec main_tui_loop state =
           let () = Data.store_todos folders in
           main_tui_loop { state with folders }))
   | `Key (`ASCII 'a', _) ->
-    clear_screen state.t;
-    (* TODO: check if selected item is a folder or todo *)
-    (match Input.prompt_for_title_and_description "" "" with
+    (match Input.prompt_for_title_and_description state "" "" with
      | None -> main_tui_loop state
      | Some (title, description) ->
        let folders =
@@ -363,7 +344,6 @@ let rec main_tui_loop state =
         Data.store_todos folders;
         main_tui_loop { state with selected_index; folders })
   | `Key (`ASCII 'e', _) ->
-    clear_screen state.t;
     let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
      | Todo _ ->
@@ -372,7 +352,7 @@ let rec main_tui_loop state =
            state.selected_index
            state.folders
            (fun t -> [ t ])
-           edit_todo
+           (edit_todo state)
        in
        let () = Data.store_todos folders in
        main_tui_loop { state with folders }
@@ -381,7 +361,7 @@ let rec main_tui_loop state =
          map_display_list_nth
            state.selected_index
            state.folders
-           edit_folder_title
+           (edit_folder_title state)
            (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in

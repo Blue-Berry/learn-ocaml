@@ -36,8 +36,13 @@
 (* ;; *)
 let folders = Lib.Data.get_todos ()
 
-let state : Lib.Tui.state =
-  { folders; t = Notty_unix.Term.create (); pos = 0, 0; selected_index = 0 }
+let state : Lib.Common.state =
+  { folders
+  ; t = Notty_unix.Term.create ()
+  ; pos = 0, 0
+  ; selected_index = 0
+  ; img = Notty.I.empty
+  }
 ;;
 
 let () = Lib.Tui.main_tui_loop state

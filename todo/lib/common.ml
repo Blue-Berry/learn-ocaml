@@ -168,3 +168,11 @@ let simpleterm ~imgf ~f ~s =
   in
   go s
 ;;
+
+type state =
+  { t : Term.t
+  ; img : image
+  ; pos : int * int
+  ; selected_index : int
+  ; folders : Data.folders
+  }
