@@ -110,7 +110,34 @@ let lines_of_string_tests =
        ]
 ;;
 
+(* Lib.Tui.move_todo *)
+(* index n starts at 1 *)
+let move_todo_tests =
+  "test suite for move_todo"
+  >::: [ ("move_todo with empty list"
+          >:: fun _ -> assert_equal [] (Lib.Tui.move_todo 0 [] 0))
+       ; ("swamp first two"
+          >:: fun _ ->
+          assert_equal
+            [ "two"; "one" ]
+            (Lib.Tui.move_todo 1 [ "one"; "two" ] 1)
+            ~printer:(fun x -> String.concat "; " x))
+       ; ("swamp last two"
+          >:: fun _ ->
+          assert_equal
+            [ "one"; "three"; "two" ]
+            (Lib.Tui.move_todo 1 [ "one"; "two"; "three" ] 2)
+            ~printer:(fun x -> String.concat "; " x))
+       ; ("Move item backwards"
+          >:: fun _ ->
+          assert_equal
+            [ "one"; "three"; "two" ]
+            (Lib.Tui.move_todo (-1) [ "one"; "two"; "three" ] 3))
+       ]
+;;
+
 let _ = run_test_tt_main insert_at_tests
 let _ = run_test_tt_main remove_at_tests
 let _ = run_test_tt_main calc_cursor_pos_tests
 let _ = run_test_tt_main lines_of_string_tests
+let _ = run_test_tt_main move_todo_tests

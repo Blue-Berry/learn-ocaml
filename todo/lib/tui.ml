@@ -4,6 +4,7 @@ type display_list =
   | Todo of (Data.todo * int)
   | Folder of (Data.folder * int)
 
+(* unused *)
 let change_todo_priority todo_list n delta =
   let todo = List.nth todo_list n in
   let prev_todo = List.nth todo_list (n + delta) in
@@ -225,7 +226,7 @@ let map_display_list_nth n folders folder_map todo_map =
       let new_todos = todo_map folder.todos n in
       List.rev acc @ [ { folder with todos = new_todos } ] @ rest, 0
     | ({ folders = []; _ } as folder) :: rest, n when n >= List.length folder.todos ->
-      aux rest (folder :: acc) (n - List.length folder.todos)
+      aux rest (folder :: acc) (n - List.length folder.todos - 1)
     | ({ is_open = true; folders = sub_folders; _ } as folder) :: rest, n ->
       let new_sub_folders, n = aux sub_folders [] (n - 1) in
       if n = 0
@@ -273,6 +274,44 @@ let add_new_folder name folder =
   [ new_folder; folder ]
 ;;
 
+let edit_folder_title folder =
+  match prompt_for_title folder.name with
+  | None -> [ folder ]
+  | Some name ->
+    let new_folder = { folder with name } in
+    [ new_folder ]
+;;
+
+let edit_todo todos n =
+  let new_todos =
+    List.mapi
+      (fun i t ->
+        if i = n - 1
+        then (
+          match prompt_for_title_and_description t.title t.description with
+          | None -> t
+          | Some (title, description) -> { t with title; description })
+        else t)
+      todos
+  in
+  new_todos
+;;
+
+(* [move_todo delta todos n] *)
+let move_todo delta todos n =
+  let n = n - 1 in
+  let n' = n + delta in
+  if n' < 0 || n' >= List.length todos
+  then todos
+  else (
+    let todo = List.nth todos n in
+    let prev_todo = List.nth todos n' in
+    let updated_todos =
+      List.mapi (fun i t -> if i = n then prev_todo else if i = n' then todo else t) todos
+    in
+    updated_todos)
+;;
+
 let img_of_display_list list selected_index =
   let rec aux list selected_index acc n =
     match list with
@@ -317,6 +356,7 @@ let img_of_display_list list selected_index =
   aux list selected_index I.empty 0
 ;;
 
+(* TODO: move state variables into a record *)
 let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
   let img = img_of_display_list (display_list_of_folders folders) selected_index in
   Term.image t img;
@@ -360,7 +400,7 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
       selected_index
       (map_display_list_nth selected_index folders delete_folder delete_todo)
   (* add new folder *)
-  | `Key (`ASCII 'A', [ `Ctrl ]) ->
+  | `Key (`ASCII 'n', _) ->
     clear_screen t;
     let item = List.nth (display_list_of_folders folders) selected_index in
     (match item with
@@ -407,34 +447,54 @@ let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) 
        let () = Data.store_todos folders in
        main_tui_loop t pos selected_index folders)
   (* Shift item up or down *)
-  (* | `Key (`ASCII 'j', _) -> *)
-  (*   if selected_index >= List.length folders.todos - 1 *)
-  (*   then main_tui_loop t pos selected_index folders *)
-  (*   else ( *)
-  (*     let updated_todos = change_todo_priority folders.todos selected_index 1 in *)
-  (*     let selected_index = selected_index + 1 in *)
-  (*     Data.store_todos { todos = updated_todos }; *)
-  (*     main_tui_loop t pos selected_index { todos = updated_todos }) *)
-  (* | `Key (`ASCII 'k', _) -> *)
-  (*   if selected_index <= 0 *)
-  (*   then main_tui_loop t pos selected_index folders *)
-  (*   else ( *)
-  (*     let updated_todos = change_todo_priority folders.todos selected_index (-1) in *)
-  (*     let selected_index = selected_index - 1 in *)
-  (*     Data.store_todos { todos = updated_todos }; *)
-  (*     main_tui_loop t pos selected_index { todos = updated_todos }) *)
-  (* | `Key (`ASCII 'e', _) -> *)
-  (*   clear_screen t; *)
-  (*   let todo = List.nth folders.todos selected_index in *)
-  (*   (match prompt_for_title_and_description todo.title todo.description with *)
-  (*    | None -> main_tui_loop t pos selected_index folders *)
-  (*    | Some (title, description) -> *)
-  (*      let new_todo = { todo with title; description } in *)
-  (*      let updated_todos = *)
-  (*        List.mapi (fun i t -> if i = selected_index then new_todo else t) folders.todos *)
-  (*      in *)
-  (*      let updated_todo_list = { todos = updated_todos } in *)
-  (*      Data.store_todos updated_todo_list; *)
-  (*      main_tui_loop (Term.create ()) pos 0 updated_todo_list) *)
+  | `Key (`ASCII 'j', _) ->
+    if selected_index >= List.length (display_list_of_folders folders) - 1
+    then main_tui_loop t pos selected_index folders
+    else (
+      match
+        ( List.nth (display_list_of_folders folders) selected_index
+        , List.nth (display_list_of_folders folders) (selected_index + 1) )
+      with
+      | Folder _, _ | Todo _, Folder _ -> main_tui_loop t pos selected_index folders
+      | Todo _, Todo _ ->
+        let folders =
+          map_display_list_nth selected_index folders (fun t -> [ t ]) (move_todo 1)
+        in
+        let selected_index = selected_index + 1 in
+        Data.store_todos folders;
+        main_tui_loop t pos selected_index folders)
+  | `Key (`ASCII 'k', _) ->
+    if selected_index <= 0
+    then main_tui_loop t pos selected_index folders
+    else (
+      match
+        ( List.nth (display_list_of_folders folders) selected_index
+        , List.nth (display_list_of_folders folders) (selected_index - 1) )
+      with
+      | Folder _, _ | Todo _, Folder _ -> main_tui_loop t pos selected_index folders
+      | Todo _, Todo _ ->
+        let folders =
+          map_display_list_nth selected_index folders (fun t -> [ t ]) (move_todo (-1))
+        in
+        let selected_index = selected_index - 1 in
+        Data.store_todos folders;
+        main_tui_loop t pos selected_index folders)
+  | `Key (`ASCII 'e', _) ->
+    clear_screen t;
+    let item = List.nth (display_list_of_folders folders) selected_index in
+    (match item with
+     | Todo _ ->
+       let folders =
+         map_display_list_nth selected_index folders (fun t -> [ t ]) edit_todo
+       in
+       let () = Data.store_todos folders in
+       main_tui_loop t pos selected_index folders
+     | Folder _ ->
+       let folders =
+         map_display_list_nth selected_index folders edit_folder_title (fun todo _ ->
+           todo)
+       in
+       let () = Data.store_todos folders in
+       main_tui_loop t pos selected_index folders)
   | _ -> main_tui_loop t pos selected_index folders
 ;;
