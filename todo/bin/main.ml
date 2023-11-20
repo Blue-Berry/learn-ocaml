@@ -34,15 +34,14 @@ let init_git_repository folder_path =
    | 0 ->
      Printf.printf "Git repository initialized successfully in %s.\n" folder_path;
      let git_add_command = "git add ." in
-     let result_add = Sys.command git_add_command in
-     (match result_add with
-      | 0 ->
-        let git_commit_command = "git commit -m \"Initial commit\"" in
-        let result_commit = Sys.command git_commit_command in
-        (match result_commit with
-         | 0 -> Printf.printf "Initial commit successfully performed.\n"
-         | _ -> Printf.printf "Failed to perform initial commit.\n")
-      | _ -> Printf.printf "Failed to add files to the initial commit.\n")
+     let result = exec_command git_add_command in
+     let result =
+       Option.bind result (fun _ -> exec_command "git commit -m \"Initial commit\"")
+     in
+     (match result with
+      | Some _ ->
+        Printf.printf "Git repository initialized successfully in %s.\n" folder_path
+      | _ -> Printf.printf "Failed to initialize Git repository in %s.\n" folder_path)
    | _ -> Printf.printf "Failed to initialize Git repository in %s.\n" folder_path);
   Unix.chdir old_dir
 ;;

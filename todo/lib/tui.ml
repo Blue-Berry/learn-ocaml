@@ -250,6 +250,11 @@ let rec main_tui_loop (state : Common.state) =
   Term.image state.t state.img;
   match Term.event state.t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
+    let target_folder = Data.get_home_directory () ^ "/.todo" in
+    let old_dir = Unix.getcwd () in
+    Unix.chdir target_folder;
+    let _ = Sys.command "git add . && git commit -m 'update' && git push" in
+    Unix.chdir old_dir;
     Data.store_todos state.folders
   | `Resize _ -> main_tui_loop state
   | `Key (`Arrow d, _) ->
