@@ -4,28 +4,28 @@ let insert_at_tests =
   "test suite for insert_at"
   >::: [ ("insert in the middle"
           >:: fun _ ->
-          assert_equal "testthis" (Lib.Tui.insert_at 5 'h' "testtis") ~printer:(fun x ->
+          assert_equal "testthis" (Lib.Input.insert_at 5 'h' "testtis") ~printer:(fun x ->
             x))
        ; ("insert at the end"
           >:: fun _ ->
-          assert_equal "testthis" (Lib.Tui.insert_at 8 's' "testthi") ~printer:(fun x ->
+          assert_equal "testthis" (Lib.Input.insert_at 8 's' "testthi") ~printer:(fun x ->
             x))
        ; ("insert at the beginning"
           >:: fun _ ->
-          assert_equal "testthis" (Lib.Tui.insert_at 0 't' "estthis") ~printer:(fun x ->
+          assert_equal "testthis" (Lib.Input.insert_at 0 't' "estthis") ~printer:(fun x ->
             x))
        ]
 ;;
 
-(* Lib.Tui.remove_at *)
+(* Lib.Input.remove_at *)
 let remove_at_tests =
   "test suite for remove_at"
   >::: [ ("remove in the middle"
-          >:: fun _ -> assert_equal "testtis" (Lib.Tui.remove_at 5 "testthis"))
+          >:: fun _ -> assert_equal "testtis" (Lib.Input.remove_at 5 "testthis"))
        ; ("remove at the end"
-          >:: fun _ -> assert_equal "testthi" (Lib.Tui.remove_at 7 "testthis"))
+          >:: fun _ -> assert_equal "testthi" (Lib.Input.remove_at 7 "testthis"))
        ; ("remove at the beginning"
-          >:: fun _ -> assert_equal "estthis" (Lib.Tui.remove_at 0 "testthis"))
+          >:: fun _ -> assert_equal "estthis" (Lib.Input.remove_at 0 "testthis"))
        ]
 ;;
 
@@ -44,51 +44,51 @@ let calc_cursor_pos_tests =
           >:: fun _ ->
           assert_equal
             (1, 1)
-            (Lib.Tui.calc_cursor_pos "" "" 0)
+            (Lib.Input.calc_cursor_pos "" "" 0)
             ~printer:string_of_int_pair)
        ; ("calc_cursor_pos with string"
           >:: fun _ ->
           assert_equal
             (2, 1)
-            (Lib.Tui.calc_cursor_pos "test" "" 0)
+            (Lib.Input.calc_cursor_pos "test" "" 0)
             ~printer:string_of_int_pair)
        ; ("calc_cursor_pos with string and cursor at the end"
           >:: fun _ ->
           assert_equal
             (6, 1)
-            (Lib.Tui.calc_cursor_pos "test" "" 4)
+            (Lib.Input.calc_cursor_pos "test" "" 4)
             ~printer:string_of_int_pair)
        ; ("calc_cursor_pos with '\n' in string"
           >:: fun _ ->
           assert_equal
             (1, 2)
-            (Lib.Tui.calc_cursor_pos "test\n" "" 4)
+            (Lib.Input.calc_cursor_pos "test\n" "" 4)
             ~printer:string_of_int_pair)
        ; ("calc_cursor_pos with '\n' and string wrapping of 80"
           >:: fun _ ->
           assert_equal
             (1, 6)
-            (Lib.Tui.calc_cursor_pos "test\n" (repeat_string "test\n" 4) 4)
+            (Lib.Input.calc_cursor_pos "test\n" (repeat_string "test\n" 4) 4)
             ~printer:string_of_int_pair)
        ]
 ;;
 
-(* Lib.Tui.lines_of_string *)
+(* Lib.Input.lines_of_string *)
 let lines_of_string_tests =
   "test suite for lines_of_string"
   >::: [ ("lines_of_string with empty string"
           >:: fun _ ->
-          assert_equal [ "" ] (Lib.Tui.lines_of_string "") ~printer:(fun x ->
+          assert_equal [ "" ] (Lib.Input.lines_of_string "") ~printer:(fun x ->
             String.concat "\n" x))
        ; ("lines_of_string with string"
           >:: fun _ ->
-          assert_equal [ "test" ] (Lib.Tui.lines_of_string "test") ~printer:(fun x ->
+          assert_equal [ "test" ] (Lib.Input.lines_of_string "test") ~printer:(fun x ->
             String.concat "\n" x))
        ; ("lines_of_string with string and newline"
           >:: fun _ ->
           assert_equal
             [ "test"; "" ]
-            (Lib.Tui.lines_of_string "test\n")
+            (Lib.Input.lines_of_string "test\n")
             ~printer:(fun x -> String.concat "\n" x))
        ; ("lines_of_string with string and newline and wrapping"
           >:: fun _ ->
@@ -105,7 +105,7 @@ let lines_of_string_tests =
             ; "1test"
             ; ""
             ]
-            (Lib.Tui.lines_of_string (repeat_string_with_num "test\n" 10))
+            (Lib.Input.lines_of_string (repeat_string_with_num "test\n" 10))
             ~printer:(fun x -> String.concat "\n" x))
        ]
 ;;
