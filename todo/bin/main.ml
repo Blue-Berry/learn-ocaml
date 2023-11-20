@@ -35,4 +35,9 @@
 (*   ] *)
 (* ;; *)
 let folders = Lib.Data.get_todos ()
-let () = Lib.Tui.main_tui_loop (Notty_unix.Term.create ()) (0, 0) 0 folders
+
+let state : Lib.Tui.state =
+  { folders; t = Notty_unix.Term.create (); pos = 0, 0; selected_index = 0 }
+;;
+
+let () = Lib.Tui.main_tui_loop state

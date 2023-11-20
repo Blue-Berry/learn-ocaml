@@ -211,145 +211,180 @@ let img_of_display_list list selected_index =
   aux list selected_index I.empty 0
 ;;
 
+type state =
+  { t : Term.t
+  ; pos : int * int
+  ; selected_index : int
+  ; folders : Data.folders
+  }
+
 (* TODO: move state variables into a record *)
-let rec main_tui_loop t ((x, y) as pos) selected_index (folders : Data.folders) =
-  let img = img_of_display_list (display_list_of_folders folders) selected_index in
-  Term.image t img;
-  match Term.event t with
+let rec main_tui_loop state =
+  let img =
+    img_of_display_list (display_list_of_folders state.folders) state.selected_index
+  in
+  Term.image state.t img;
+  match Term.event state.t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
-    Data.store_todos folders
-  | `Resize _ -> main_tui_loop t pos selected_index folders
+    Data.store_todos state.folders
+  | `Resize _ -> main_tui_loop state
   | `Key (`Arrow d, _) ->
-    let max_index = List.length (display_list_of_folders folders) - 1 in
+    let max_index = List.length (display_list_of_folders state.folders) - 1 in
     let new_index =
       match d with
-      | `Up -> max 0 (selected_index - 1)
-      | `Down -> min max_index (selected_index + 1)
-      | _ -> selected_index
+      | `Up -> max 0 (state.selected_index - 1)
+      | `Down -> min max_index (state.selected_index + 1)
+      | _ -> state.selected_index
     in
+    let y = state.pos |> snd in
+    let x = state.pos |> fst in
     let new_pos =
-      let selected_y = y + new_index - selected_index in
+      let selected_y = y + new_index - state.selected_index in
       match d with
       | `Up -> x, selected_y
       | `Down -> x, selected_y
       | `Left -> x, y
       | `Right -> x, y
     in
-    main_tui_loop t new_pos new_index folders
+    let state = { state with selected_index = new_index; pos = new_pos } in
+    main_tui_loop state
   | `Key (`Enter, _) ->
-    let () = Data.store_todos folders in
+    let () = Data.store_todos state.folders in
     main_tui_loop
-      t
-      pos
-      selected_index
-      (map_display_list_nth
-         selected_index
-         folders
-         toggle_folder_status
-         toggle_todo_status)
+      { state with
+        folders =
+          map_display_list_nth
+            state.selected_index
+            state.folders
+            toggle_folder_status
+            toggle_todo_status
+      }
   | `Key (`ASCII 'D', [ `Ctrl ]) ->
-    let () = Data.store_todos folders in
-    main_tui_loop
-      t
-      pos
-      selected_index
-      (map_display_list_nth selected_index folders delete_folder delete_todo)
+    let state =
+      { state with
+        folders =
+          map_display_list_nth
+            state.selected_index
+            state.folders
+            delete_folder
+            delete_todo
+      }
+    in
+    let () = Data.store_todos state.folders in
+    main_tui_loop state
   (* add new folder *)
   | `Key (`ASCII 'n', _) ->
-    clear_screen t;
-    let item = List.nth (display_list_of_folders folders) selected_index in
+    clear_screen state.t;
+    let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
      | Todo _ ->
        (match Input.prompt_for_title_and_description "" "" with
-        | None -> main_tui_loop t pos selected_index folders
+        | None -> main_tui_loop state
         | Some (title, description) ->
-          let () = Data.store_todos folders in
-          main_tui_loop
-            t
-            pos
-            selected_index
-            (map_display_list_nth
-               selected_index
-               folders
-               (add_new_folder title)
-               (add_new_todo title description)))
+          let state =
+            { state with
+              folders =
+                map_display_list_nth
+                  state.selected_index
+                  state.folders
+                  (add_new_folder title)
+                  (add_new_todo title description)
+            }
+          in
+          let () = Data.store_todos state.folders in
+          main_tui_loop state)
      | Folder _ ->
        (match Input.prompt_for_title "" with
-        | None -> main_tui_loop t pos selected_index folders
+        | None -> main_tui_loop state
         | Some title ->
           let folders =
             map_display_list_nth
-              selected_index
-              folders
+              state.selected_index
+              state.folders
               (add_new_folder title)
               (fun todo _ -> todo)
           in
           let () = Data.store_todos folders in
-          main_tui_loop t pos selected_index folders))
+          main_tui_loop { state with folders }))
   | `Key (`ASCII 'a', _) ->
-    clear_screen t;
+    clear_screen state.t;
     (* TODO: check if selected item is a folder or todo *)
     (match Input.prompt_for_title_and_description "" "" with
-     | None -> main_tui_loop t pos selected_index folders
+     | None -> main_tui_loop state
      | Some (title, description) ->
        let folders =
          map_display_list_nth
-           selected_index
-           folders
+           state.selected_index
+           state.folders
            (add_new_todo_in_folder title description)
            (add_new_todo title description)
        in
        let () = Data.store_todos folders in
-       main_tui_loop t pos selected_index folders)
+       main_tui_loop { state with folders })
   (* Shift item up or down *)
   | `Key (`ASCII 'j', _) ->
-    if selected_index >= List.length (display_list_of_folders folders) - 1
-    then main_tui_loop t pos selected_index folders
+    if state.selected_index >= List.length (display_list_of_folders state.folders) - 1
+    then main_tui_loop state
     else (
       match
-        ( List.nth (display_list_of_folders folders) selected_index
-        , List.nth (display_list_of_folders folders) (selected_index + 1) )
+        ( List.nth (display_list_of_folders state.folders) state.selected_index
+        , List.nth (display_list_of_folders state.folders) (state.selected_index + 1) )
       with
-      | Folder _, _ | Todo _, Folder _ -> main_tui_loop t pos selected_index folders
+      | Folder _, _ | Todo _, Folder _ -> main_tui_loop state
       | Todo _, Todo _ ->
         let folders =
-          map_display_list_nth selected_index folders (fun t -> [ t ]) (move_todo 1)
+          map_display_list_nth
+            state.selected_index
+            state.folders
+            (fun t -> [ t ])
+            (move_todo 1)
         in
-        let selected_index = selected_index + 1 in
+        let selected_index = state.selected_index + 1 in
         Data.store_todos folders;
-        main_tui_loop t pos selected_index folders)
+        main_tui_loop { state with selected_index; folders })
   | `Key (`ASCII 'k', _) ->
-    if selected_index <= 0
-    then main_tui_loop t pos selected_index folders
+    if state.selected_index <= 0
+    then main_tui_loop state
     else (
       match
-        ( List.nth (display_list_of_folders folders) selected_index
-        , List.nth (display_list_of_folders folders) (selected_index - 1) )
+        ( List.nth (display_list_of_folders state.folders) state.selected_index
+        , List.nth (display_list_of_folders state.folders) (state.selected_index - 1) )
       with
-      | Folder _, _ | Todo _, Folder _ -> main_tui_loop t pos selected_index folders
+      | Folder _, _ | Todo _, Folder _ -> main_tui_loop state
       | Todo _, Todo _ ->
         let folders =
-          map_display_list_nth selected_index folders (fun t -> [ t ]) (move_todo (-1))
+          map_display_list_nth
+            state.selected_index
+            state.folders
+            (fun t -> [ t ])
+            (move_todo (-1))
         in
-        let selected_index = selected_index - 1 in
+        let selected_index = state.selected_index - 1 in
         Data.store_todos folders;
-        main_tui_loop t pos selected_index folders)
+        main_tui_loop { state with selected_index; folders })
   | `Key (`ASCII 'e', _) ->
-    clear_screen t;
-    let item = List.nth (display_list_of_folders folders) selected_index in
+    clear_screen state.t;
+    let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
      | Todo _ ->
        let folders =
-         map_display_list_nth selected_index folders (fun t -> [ t ]) edit_todo
+         map_display_list_nth
+           state.selected_index
+           state.folders
+           (fun t -> [ t ])
+           edit_todo
        in
        let () = Data.store_todos folders in
-       main_tui_loop t pos selected_index folders
+       main_tui_loop { state with folders }
      | Folder _ ->
        let folders =
-         map_display_list_nth selected_index folders edit_folder_title (fun todo _ ->
-           todo)
+         map_display_list_nth
+           state.selected_index
+           state.folders
+           edit_folder_title
+           (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in
-       main_tui_loop t pos selected_index folders)
-  | _ -> main_tui_loop t pos selected_index folders
+       main_tui_loop { state with folders })
+  | _ -> main_tui_loop state
 ;;
