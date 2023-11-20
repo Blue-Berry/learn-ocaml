@@ -2,5 +2,5 @@
  (name lib)
  (libraries notty notty.unix yojson core ppx_deriving_yojson.runtime nottui lwd)
  (preprocess (pps ppx_deriving_yojson))
- (modules data tui common input)
+ (modules data tui common input colours)
  )

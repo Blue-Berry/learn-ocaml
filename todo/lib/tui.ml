@@ -154,7 +154,7 @@ let move_todo delta todos n =
     updated_todos)
 ;;
 
-let img_of_display_list list selected_index =
+let img_of_display_list list selected_index state =
   let rec aux list selected_index acc n =
     match list with
     | [] -> acc
@@ -168,10 +168,29 @@ let img_of_display_list list selected_index =
       in
       let attr =
         match todo.completed, n with
-        | true, _ when n = selected_index -> A.fg A.cyan
-        | true, _ -> A.fg A.lightgreen
-        | false, _ when n = selected_index -> A.fg A.yellow
-        | false, _ -> A.fg A.blue
+        | true, _ when n = selected_index ->
+          A.fg
+            (A.rgb_888
+               ~r:state.scheme.comp_selected.r
+               ~g:state.scheme.comp_selected.g
+               ~b:state.scheme.comp_selected.b)
+        | true, _ ->
+          A.fg
+            (A.rgb_888
+               ~r:state.scheme.completed.r
+               ~g:state.scheme.completed.g
+               ~b:state.scheme.completed.b)
+        | false, _ when n = selected_index ->
+          A.fg
+            A.(
+              rgb_888
+                ~r:state.scheme.selected.r
+                ~g:state.scheme.selected.g
+                ~b:state.scheme.selected.b)
+        | false, _ ->
+          A.fg
+            A.(
+              rgb_888 ~r:state.scheme.todo.r ~g:state.scheme.todo.g ~b:state.scheme.todo.b)
       in
       let title_img = img_of_string (checkbox ^ todo.title) 80 attr in
       let desc_img =
@@ -190,7 +209,25 @@ let img_of_display_list list selected_index =
         | false, _ when n = selected_index -> "  "
         | false, _ -> "  "
       in
-      let attr = if n = selected_index then A.(fg yellow) else A.(fg red) in
+      let attr =
+        if n = selected_index
+        then
+          A.(
+            fg
+              A.(
+                rgb_888
+                  ~r:state.scheme.selected.r
+                  ~g:state.scheme.selected.g
+                  ~b:state.scheme.selected.b))
+        else
+          A.(
+            fg
+              A.(
+                rgb_888
+                  ~r:state.scheme.folder.r
+                  ~g:state.scheme.folder.g
+                  ~b:state.scheme.folder.b))
+      in
       let string_img = img_of_string (prefix ^ folder.name) 80 attr in
       let img = I.hpad indent 0 string_img in
       aux rest selected_index (I.vcat [ acc; img ]) (n + 1)
@@ -204,7 +241,10 @@ let rec main_tui_loop (state : Common.state) =
   let state =
     { state with
       img =
-        img_of_display_list (display_list_of_folders state.folders) state.selected_index
+        img_of_display_list
+          (display_list_of_folders state.folders)
+          state.selected_index
+          state
     }
   in
   Term.image state.t state.img;

@@ -175,4 +175,5 @@ type state =
   ; pos : int * int
   ; selected_index : int
   ; folders : Data.folders
+  ; scheme : Colours.Colourscheme.scheme
   }

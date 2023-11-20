@@ -111,10 +111,43 @@ let text_input_loop (state : Common.state) text prompt =
       then 0
       else text_index
     in
-    let prompt_img = img_of_string prompt 80 A.(fg magenta) in
-    let text_img = img_of_string text 80 A.(fg lightblue) in
+    let prompt_img =
+      img_of_string
+        prompt
+        80
+        A.(
+          fg
+            A.(
+              rgb_888
+                ~r:state.scheme.prompt.r
+                ~g:state.scheme.prompt.g
+                ~b:state.scheme.prompt.b))
+    in
+    let text_img =
+      img_of_string
+        text
+        80
+        A.(
+          fg
+            A.(
+              rgb_888 ~r:state.scheme.text.r ~g:state.scheme.text.g ~b:state.scheme.text.b))
+    in
     let text_img = I.vcat [ prompt_img; I.(void 1 0 <|> text_img) ] |> I.pad ~t:1 ~l:2 in
-    let () = Term.image state.t I.(text_img </> outline A.(fg lightred) </> state.img) in
+    let () =
+      Term.image
+        state.t
+        I.(
+          text_img
+          </> outline
+                A.(
+                  fg
+                    A.(
+                      rgb_888
+                        ~r:state.scheme.border.r
+                        ~g:state.scheme.border.g
+                        ~b:state.scheme.border.b))
+          </> state.img)
+    in
     let cursor_pos = calc_cursor_pos text prompt (index_change 0) in
     Term.cursor state.t (Some (fst cursor_pos + 2, snd cursor_pos + 1));
     let t = state.t in
