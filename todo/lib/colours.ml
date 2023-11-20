@@ -22,14 +22,14 @@ module Colourscheme = struct
   let scheme_of_json json = scheme_of_yojson json
 
   let default =
-    { todo = { r = 0; g = 0; b = 255 }
-    ; completed = { r = 0; g = 255; b = 0 }
-    ; folder = { r = 255; g = 0; b = 0 }
-    ; selected = { r = 255; g = 255; b = 0 }
-    ; prompt = { r = 255; g = 255; b = 255 }
-    ; border = { r = 255; g = 0; b = 0 }
-    ; comp_selected = { r = 0; g = 255; b = 255 }
-    ; text = { r = 255; g = 255; b = 255 }
+    { todo = { r = 125; g = 196; b = 228 }
+    ; completed = { r = 166; g = 218; b = 149 }
+    ; folder = { r = 237; g = 135; b = 150 }
+    ; selected = { r = 198; g = 160; b = 246 }
+    ; prompt = { r = 125; g = 196; b = 228 }
+    ; border = { r = 238; g = 153; b = 160 }
+    ; comp_selected = { r = 245; g = 169; b = 127 }
+    ; text = { r = 183; g = 189; b = 248 }
     }
   ;;
 
