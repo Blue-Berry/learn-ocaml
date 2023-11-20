@@ -54,6 +54,7 @@ let display_list_of_folders folders =
   aux folders [] 0
 ;;
 
+(* TODO: set up default function for folder_map and todo_map *)
 (** [toggle_display_list_nth n folders folder_map todo_map] **)
 let map_display_list_nth n folders folder_map todo_map =
   let rec aux folders acc n =
@@ -302,6 +303,7 @@ let rec main_tui_loop (state : Common.state) =
     let () = Data.store_todos state.folders in
     main_tui_loop state
   (* add new folder *)
+  (* TODO: Allow for creating sub dirs *)
   | `Key (`ASCII 'n', _) ->
     let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
