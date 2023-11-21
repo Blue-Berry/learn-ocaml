@@ -115,24 +115,24 @@ let lines_of_string_tests =
 let move_todo_tests =
   "test suite for move_todo"
   >::: [ ("move_todo with empty list"
-          >:: fun _ -> assert_equal [] (Lib.Tui.move_todo 0 [] 0))
+          >:: fun _ -> assert_equal [] (Lib.Tui.Maps.move_todo 0 [] 0))
        ; ("swamp first two"
           >:: fun _ ->
           assert_equal
             [ "two"; "one" ]
-            (Lib.Tui.move_todo 1 [ "one"; "two" ] 1)
+            (Lib.Tui.Maps.move_todo 1 [ "one"; "two" ] 1)
             ~printer:(fun x -> String.concat "; " x))
        ; ("swamp last two"
           >:: fun _ ->
           assert_equal
             [ "one"; "three"; "two" ]
-            (Lib.Tui.move_todo 1 [ "one"; "two"; "three" ] 2)
+            (Lib.Tui.Maps.move_todo 1 [ "one"; "two"; "three" ] 2)
             ~printer:(fun x -> String.concat "; " x))
        ; ("Move item backwards"
           >:: fun _ ->
           assert_equal
             [ "one"; "three"; "two" ]
-            (Lib.Tui.move_todo (-1) [ "one"; "two"; "three" ] 3))
+            (Lib.Tui.Maps.move_todo (-1) [ "one"; "two"; "three" ] 3))
        ]
 ;;
 

@@ -82,97 +82,97 @@ let map_display_list_nth n folders folder_map todo_map =
   folders
 ;;
 
-let toggle_folder_status folder = [ { folder with is_open = not folder.is_open } ]
+(* add all these functions into a module *)
 
-let toggle_todo_status todos n =
-  let new_todos =
-    List.mapi
-      (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
-      todos
-  in
-  new_todos
-;;
+module Maps = struct
+  let toggle_folder_status folder = [ { folder with is_open = not folder.is_open } ]
 
-let delete_todo todos n =
-  let new_todos = List.filteri (fun i _ -> i <> n - 1) todos in
-  new_todos
-;;
+  let toggle_todo_status todos n =
+    let new_todos =
+      List.mapi
+        (fun i t -> if i = n - 1 then { t with completed = not t.completed } else t)
+        todos
+    in
+    new_todos
+  ;;
 
-let delete_folder _ = []
+  let delete_todo todos n =
+    let new_todos = List.filteri (fun i _ -> i <> n - 1) todos in
+    new_todos
+  ;;
 
-let add_new_todo state todos _ =
-  let input = Input.prompt_for_title_and_description state "" "" in
-  match input with
-  | None -> todos
-  | Some (title, description) ->
+  let delete_folder _ = []
+
+  let add_new_todo title description todos _ =
     let new_todo = { title; description; completed = false } in
     new_todo :: todos
-;;
+  ;;
 
-let add_new_todo_in_folder state folder =
-  let input = Input.prompt_for_title_and_description state "" "" in
-  match input with
-  | None -> [ folder ]
-  | Some (title, description) ->
+  let add_new_todo_in_folder title description folder =
     let new_todo = { title; description; completed = false } in
     [ { folder with todos = new_todo :: folder.todos } ]
-;;
+  ;;
 
-let add_new_folder state folder =
-  match Input.prompt_for_title state "" with
-  | None -> [ folder ]
-  | Some name ->
-    let new_folder = { name; is_open = false; todos = []; folders = [] } in
-    [ new_folder; folder ]
-;;
+  let add_new_folder state folder =
+    match Input.prompt_for_title state "" with
+    | None -> [ folder ]
+    | Some name ->
+      let new_folder = { name; is_open = false; todos = []; folders = [] } in
+      [ new_folder; folder ]
+  ;;
 
-let add_sub_folder state folder : Data.folder list =
-  match Input.prompt_for_title state "" with
-  | None -> [ folder ]
-  | Some name ->
-    let new_folder : Data.folder = { name; is_open = false; todos = []; folders = [] } in
-    [ { folder with folders = new_folder :: folder.folders } ]
-;;
+  let add_sub_folder state folder : Data.folder list =
+    match Input.prompt_for_title state "" with
+    | None -> [ folder ]
+    | Some name ->
+      let new_folder : Data.folder =
+        { name; is_open = false; todos = []; folders = [] }
+      in
+      [ { folder with folders = new_folder :: folder.folders } ]
+  ;;
 
-let edit_folder_title t folder =
-  match Input.prompt_for_title t folder.name with
-  | None -> [ folder ]
-  | Some name ->
-    let new_folder = { folder with name } in
-    [ new_folder ]
-;;
+  let edit_folder_title t folder =
+    match Input.prompt_for_title t folder.name with
+    | None -> [ folder ]
+    | Some name ->
+      let new_folder = { folder with name } in
+      [ new_folder ]
+  ;;
 
-let edit_todo state todos n =
-  let new_todos =
-    List.mapi
-      (fun i todo ->
-        if i = n - 1
-        then (
-          match
-            Input.prompt_for_title_and_description state todo.title todo.description
-          with
-          | None -> todo
-          | Some (title, description) -> { todo with title; description })
-        else todo)
-      todos
-  in
-  new_todos
-;;
-
-(* [move_todo delta todos n] *)
-let move_todo delta todos n =
-  let n = n - 1 in
-  let n' = n + delta in
-  if n' < 0 || n' >= List.length todos
-  then todos
-  else (
-    let todo = List.nth todos n in
-    let prev_todo = List.nth todos n' in
-    let updated_todos =
-      List.mapi (fun i t -> if i = n then prev_todo else if i = n' then todo else t) todos
+  let edit_todo state todos n =
+    let new_todos =
+      List.mapi
+        (fun i todo ->
+          if i = n - 1
+          then (
+            match
+              Input.prompt_for_title_and_description state todo.title todo.description
+            with
+            | None -> todo
+            | Some (title, description) -> { todo with title; description })
+          else todo)
+        todos
     in
-    updated_todos)
-;;
+    new_todos
+  ;;
+
+  (* [move_todo delta todos n] *)
+  let move_todo delta todos n =
+    let n = n - 1 in
+    let n' = n + delta in
+    if n' < 0 || n' >= List.length todos
+    then todos
+    else (
+      let todo = List.nth todos n in
+      let prev_todo = List.nth todos n' in
+      let updated_todos =
+        List.mapi
+          (fun i t -> if i = n then prev_todo else if i = n' then todo else t)
+          todos
+      in
+      updated_todos)
+  ;;
+end
 
 let img_of_display_list list selected_index state =
   let rec aux list selected_index acc n =
@@ -321,8 +321,8 @@ let rec main_tui_loop (state : Common.state) =
           map_display_list_nth
             state.selected_index
             state.folders
-            toggle_folder_status
-            toggle_todo_status
+            Maps.toggle_folder_status
+            Maps.toggle_todo_status
       }
   | `Key (`ASCII 'D', [ `Ctrl ]) ->
     let state =
@@ -331,8 +331,8 @@ let rec main_tui_loop (state : Common.state) =
           map_display_list_nth
             state.selected_index
             state.folders
-            delete_folder
-            delete_todo
+            Maps.delete_folder
+            Maps.delete_todo
       }
     in
     let () = Data.store_todos state.folders in
@@ -347,7 +347,7 @@ let rec main_tui_loop (state : Common.state) =
          map_display_list_nth
            state.selected_index
            state.folders
-           (add_sub_folder state)
+           Maps.(add_sub_folder state)
            (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in
@@ -363,8 +363,8 @@ let rec main_tui_loop (state : Common.state) =
              map_display_list_nth
                state.selected_index
                state.folders
-               (add_new_folder state)
-               (add_new_todo state)
+               (Maps.add_new_folder state)
+               (fun todo _ -> todo)
          }
        in
        let () = Data.store_todos state.folders in
@@ -374,18 +374,21 @@ let rec main_tui_loop (state : Common.state) =
          map_display_list_nth
            state.selected_index
            state.folders
-           (add_new_folder state)
+           (Maps.add_new_folder state)
            (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in
        main_tui_loop { state with folders })
   | `Key (`ASCII 'a', _) ->
     let folders =
-      map_display_list_nth
-        state.selected_index
-        state.folders
-        (add_new_todo_in_folder state)
-        (add_new_todo state)
+      match Input.prompt_for_title_and_description state "" "" with
+      | None -> state.folders
+      | Some (title, description) ->
+        map_display_list_nth
+          state.selected_index
+          state.folders
+          (Maps.add_new_todo_in_folder title description)
+          (Maps.add_new_todo title description)
     in
     let () = Data.store_todos folders in
     main_tui_loop { state with folders }
@@ -405,7 +408,7 @@ let rec main_tui_loop (state : Common.state) =
             state.selected_index
             state.folders
             (fun t -> [ t ])
-            (move_todo 1)
+            (Maps.move_todo 1)
         in
         let selected_index = state.selected_index + 1 in
         Data.store_todos folders;
@@ -425,7 +428,7 @@ let rec main_tui_loop (state : Common.state) =
             state.selected_index
             state.folders
             (fun t -> [ t ])
-            (move_todo (-1))
+            (Maps.move_todo (-1))
         in
         let selected_index = state.selected_index - 1 in
         Data.store_todos folders;
@@ -439,7 +442,7 @@ let rec main_tui_loop (state : Common.state) =
            state.selected_index
            state.folders
            (fun t -> [ t ])
-           (edit_todo state)
+           (Maps.edit_todo state)
        in
        let () = Data.store_todos folders in
        main_tui_loop { state with folders }
@@ -448,7 +451,7 @@ let rec main_tui_loop (state : Common.state) =
          map_display_list_nth
            state.selected_index
            state.folders
-           (edit_folder_title state)
+           (Maps.edit_folder_title state)
            (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in
