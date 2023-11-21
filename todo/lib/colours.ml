@@ -31,7 +31,7 @@ module Colourscheme = struct
     ; border = { r = 238; g = 153; b = 160 }
     ; comp_selected = { r = 245; g = 169; b = 127 }
     ; text = { r = 183; g = 189; b = 248 }
-    ; cursor = { r = 255; g = 255; b = 255 }
+    ; cursor = { r = 244; g = 219; b = 214 }
     }
   ;;
 
