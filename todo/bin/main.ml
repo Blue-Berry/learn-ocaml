@@ -46,12 +46,19 @@ let init_git_repository folder_path =
   Unix.chdir old_dir
 ;;
 
+(* TODO: this needs refinement *)
 let set_git_remote folder_path remote_url =
   let old_dir = Unix.getcwd () in
   Unix.chdir folder_path;
   let git_remote_command = "git remote add origin " ^ remote_url in
   let result = exec_command git_remote_command in
   let result = Option.map (fun _ -> exec_command "git branch -M main") result in
+  let result =
+    Option.map
+      (fun _ -> exec_command "git branch --set-upstream-to=origin/main main")
+      result
+  in
+  let result = Option.map (fun _ -> exec_command "git pull") result in
   let result = Option.bind result (fun _ -> exec_command " git push -u origin main") in
   if Option.is_some result
   then Printf.printf "Git remote successfully set to %s.\n" remote_url

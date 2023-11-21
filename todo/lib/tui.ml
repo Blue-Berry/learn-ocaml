@@ -251,12 +251,28 @@ let rec main_tui_loop (state : Common.state) =
   Term.image state.t state.img;
   match Term.event state.t with
   | `End | `Key (`Escape, []) | `Key (`ASCII 'C', [ `Ctrl ]) | `Key (`ASCII 'q', _) ->
+    Data.store_todos state.folders;
     let target_folder = Data.get_home_directory () ^ "/.todo" in
     let old_dir = Unix.getcwd () in
     Unix.chdir target_folder;
-    let _ = Sys.command "git add . && git commit -m 'update' && git push" in
-    Unix.chdir old_dir;
-    Data.store_todos state.folders
+    let channel = Unix.open_process_in "git status" in
+    let _ = input_line channel in
+    let output = input_line channel in
+    let _ = Unix.close_process_in channel in
+    let contains s1 s2 =
+      let re = Str.regexp_string s2 in
+      try
+        ignore (Str.search_forward re s1 0);
+        true
+      with
+      | Not_found -> false
+    in
+    let _ =
+      if contains output "ahead"
+      then Sys.command "git add . && git commit --amend --no-edit"
+      else Sys.command "git add . && git commit -m 'update'"
+    in
+    Unix.chdir old_dir
   | `Resize _ -> main_tui_loop state
   | `Key (`Arrow d, _) ->
     let max_index = List.length (display_list_of_folders state.folders) - 1 in
