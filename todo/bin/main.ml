@@ -54,12 +54,11 @@ let set_git_remote folder_path remote_url =
   let result = exec_command git_remote_command in
   let result = Option.map (fun _ -> exec_command "git branch -M main") result in
   let result =
-    Option.map
-      (fun _ -> exec_command "git branch --set-upstream-to=origin/main main")
-      result
+    Option.bind result (fun _ ->
+      exec_command "git branch --set-upstream-to=origin/main main")
   in
-  let result = Option.map (fun _ -> exec_command "git pull") result in
-  let result = Option.bind result (fun _ -> exec_command " git push -u origin main") in
+  (* let result = Option.map (fun _ -> exec_command "git pull") result in *)
+  (* let result = Option.bind result (fun _ -> exec_command " git push -u origin main") in *)
   if Option.is_some result
   then Printf.printf "Git remote successfully set to %s.\n" remote_url
   else Printf.printf "Failed to set Git remote to %s.\n" remote_url;

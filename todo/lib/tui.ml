@@ -100,19 +100,38 @@ let delete_todo todos n =
 
 let delete_folder _ = []
 
-let add_new_todo title description todos _ =
-  let new_todo = { title; description; completed = false } in
-  new_todo :: todos
+let add_new_todo state todos _ =
+  let input = Input.prompt_for_title_and_description state "" "" in
+  match input with
+  | None -> todos
+  | Some (title, description) ->
+    let new_todo = { title; description; completed = false } in
+    new_todo :: todos
 ;;
 
-let add_new_todo_in_folder title description folder =
-  let new_todo = { title; description; completed = false } in
-  [ { folder with todos = new_todo :: folder.todos } ]
+let add_new_todo_in_folder state folder =
+  let input = Input.prompt_for_title_and_description state "" "" in
+  match input with
+  | None -> [ folder ]
+  | Some (title, description) ->
+    let new_todo = { title; description; completed = false } in
+    [ { folder with todos = new_todo :: folder.todos } ]
 ;;
 
-let add_new_folder name folder =
-  let new_folder = { name; is_open = false; todos = []; folders = [] } in
-  [ new_folder; folder ]
+let add_new_folder state folder =
+  match Input.prompt_for_title state "" with
+  | None -> [ folder ]
+  | Some name ->
+    let new_folder = { name; is_open = false; todos = []; folders = [] } in
+    [ new_folder; folder ]
+;;
+
+let add_sub_folder state folder : Data.folder list =
+  match Input.prompt_for_title state "" with
+  | None -> [ folder ]
+  | Some name ->
+    let new_folder : Data.folder = { name; is_open = false; todos = []; folders = [] } in
+    [ { folder with folders = new_folder :: folder.folders } ]
 ;;
 
 let edit_folder_title t folder =
@@ -319,52 +338,57 @@ let rec main_tui_loop (state : Common.state) =
     let () = Data.store_todos state.folders in
     main_tui_loop state
   (* add new folder *)
-  (* TODO: Allow for creating sub dirs *)
   | `Key (`ASCII 'n', _) ->
     let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
-     | Todo _ ->
-       (match Input.prompt_for_title_and_description state "" "" with
-        | None -> main_tui_loop state
-        | Some (title, description) ->
-          let state =
-            { state with
-              folders =
-                map_display_list_nth
-                  state.selected_index
-                  state.folders
-                  (add_new_folder title)
-                  (add_new_todo title description)
-            }
-          in
-          let () = Data.store_todos state.folders in
-          main_tui_loop state)
+     | Todo _ -> main_tui_loop state
      | Folder _ ->
-       (match Input.prompt_for_title state "" with
-        | None -> main_tui_loop state
-        | Some title ->
-          let folders =
-            map_display_list_nth
-              state.selected_index
-              state.folders
-              (add_new_folder title)
-              (fun todo _ -> todo)
-          in
-          let () = Data.store_todos folders in
-          main_tui_loop { state with folders }))
-  | `Key (`ASCII 'a', _) ->
-    (match Input.prompt_for_title_and_description state "" "" with
-     | None -> main_tui_loop state
-     | Some (title, description) ->
        let folders =
          map_display_list_nth
            state.selected_index
            state.folders
-           (add_new_todo_in_folder title description)
-           (add_new_todo title description)
+           (add_sub_folder state)
+           (fun todo _ -> todo)
        in
        let () = Data.store_todos folders in
        main_tui_loop { state with folders })
+  (* TODO: Allow for creating sub dirs *)
+  | `Key (`ASCII 'N', [ `Ctrl ]) ->
+    let item = List.nth (display_list_of_folders state.folders) state.selected_index in
+    (match item with
+     | Todo _ ->
+       let state =
+         { state with
+           folders =
+             map_display_list_nth
+               state.selected_index
+               state.folders
+               (add_new_folder state)
+               (add_new_todo state)
+         }
+       in
+       let () = Data.store_todos state.folders in
+       main_tui_loop state
+     | Folder _ ->
+       let folders =
+         map_display_list_nth
+           state.selected_index
+           state.folders
+           (add_new_folder state)
+           (fun todo _ -> todo)
+       in
+       let () = Data.store_todos folders in
+       main_tui_loop { state with folders })
+  | `Key (`ASCII 'a', _) ->
+    let folders =
+      map_display_list_nth
+        state.selected_index
+        state.folders
+        (add_new_todo_in_folder state)
+        (add_new_todo state)
+    in
+    let () = Data.store_todos folders in
+    main_tui_loop { state with folders }
   (* Shift item up or down *)
   | `Key (`ASCII 'j', _) ->
     if state.selected_index >= List.length (display_list_of_folders state.folders) - 1
