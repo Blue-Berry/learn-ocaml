@@ -3,9 +3,21 @@ open Notty
 
 let grid xxs = xxs |> List.map I.hcat |> I.vcat
 
-let outline attr =
+let outline attr state =
   let w, h = 83, 10 in
-  let background = I.uchar A.(fg black) (Uchar.of_int 0x2007) w h in
+  (* TODO: make this colour oposite of the text colour *)
+  let background =
+    I.uchar
+      A.(
+        fg
+          (A.rgb_888
+             ~r:state.scheme.cursor.r
+             ~g:state.scheme.cursor.g
+             ~b:state.scheme.cursor.b))
+      (Uchar.of_int 0x2007)
+      w
+      h
+  in
   let chr x = I.uchar attr x 1 1
   and hbar = I.uchar attr (Uchar.of_int 0x2500) (w - 2) 1
   and vbar = I.uchar attr (Uchar.of_int 0x2502) 1 (h - 2) in
@@ -146,6 +158,7 @@ let text_input_loop (state : Common.state) text prompt =
                         ~r:state.scheme.border.r
                         ~g:state.scheme.border.g
                         ~b:state.scheme.border.b))
+                state
           </> state.img)
     in
     let cursor_pos = calc_cursor_pos text prompt (index_change 0) in
