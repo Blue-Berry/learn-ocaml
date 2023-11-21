@@ -65,6 +65,4 @@ module Colourscheme = struct
       store_scheme default;
       failwith "Unable to read colourscheme.json"
   ;;
-
-  (* TODO: read from file *)
 end

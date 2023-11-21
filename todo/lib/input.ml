@@ -5,7 +5,6 @@ let grid xxs = xxs |> List.map I.hcat |> I.vcat
 
 let outline attr state =
   let w, h = 83, 10 in
-  (* TODO: make this colour oposite of the text colour *)
   let background =
     I.uchar
       A.(

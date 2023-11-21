@@ -1,20 +1,9 @@
 open Notty
 
+(* TODO: breakup into seperate modules *)
 type display_list =
   | Todo of (Data.todo * int)
   | Folder of (Data.folder * int)
-
-(* unused *)
-let change_todo_priority todo_list n delta =
-  let todo = List.nth todo_list n in
-  let prev_todo = List.nth todo_list (n + delta) in
-  let updated_todos =
-    List.mapi
-      (fun i t -> if i = n then prev_todo else if i = n + delta then todo else t)
-      todo_list
-  in
-  updated_todos
-;;
 
 let img_of_string s width attr =
   (* Split new lines *)
@@ -54,7 +43,6 @@ let display_list_of_folders folders =
   aux folders [] 0
 ;;
 
-(* TODO: set up default function for folder_map and todo_map *)
 (** [toggle_display_list_nth n folders folder_map todo_map] **)
 let map_display_list_nth n folders folder_map todo_map =
   let rec aux folders acc n =
@@ -257,6 +245,7 @@ let img_of_display_list list selected_index state =
 
 open Common
 
+(* TODO: break this up into smaller functions *)
 let rec main_tui_loop (state : Common.state) =
   let state =
     { state with
@@ -352,7 +341,6 @@ let rec main_tui_loop (state : Common.state) =
        in
        let () = Data.store_todos folders in
        main_tui_loop { state with folders })
-  (* TODO: Allow for creating sub dirs *)
   | `Key (`ASCII 'N', [ `Ctrl ]) ->
     let item = List.nth (display_list_of_folders state.folders) state.selected_index in
     (match item with
