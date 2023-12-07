@@ -137,3 +137,16 @@ let duplicate lst =
   in
   aux [] lst
 ;;
+
+(* Replicate the Elements of a List a Given Number of Times *)
+let replicate lst n =
+  let rec many acc a = function
+    | 0 -> acc
+    | n -> many (a :: acc) a (n - 1)
+  in
+  let rec aux acc = function
+    | [] -> acc
+    | h :: t -> aux (many acc h n) t
+  in
+  aux [] (List.rev lst)
+;;
