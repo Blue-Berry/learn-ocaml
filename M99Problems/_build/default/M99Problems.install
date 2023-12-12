@@ -1,8 +1,0 @@
-lib: [
-  "_build/install/default/lib/M99Problems/META"
-  "_build/install/default/lib/M99Problems/dune-package"
-  "_build/install/default/lib/M99Problems/opam"
-]
-bin: [
-  "_build/install/default/bin/M99Problems"
-]
