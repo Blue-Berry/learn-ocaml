@@ -1,6 +1,7 @@
 (executable
  (public_name todo)
  (name main)
+ (ocamlopt_flags :standard -O3 )
  (libraries lib)
  (preprocess (pps ppx_deriving_yojson))
  )
